@@ -46,19 +46,20 @@ rm_vars = which(colnames(vars_dam) %in% c('P1Q2.5.1.88', 'P1Q2.5.1.99', 'P1Q2.5.
                                           'P1Q2.10.2.88', 'P1Q2.10.2.99', 'P1Q2.10.2.specify','P1Q2.11.2.88', 'P1Q2.11.2.99'))
 vars_dam = vars_dam[,-rm_vars]
 
+## contamnations
 vars_dam$P1Q2.5.2.3[which(is.na(vars_dam$P1Q2.5.2.3)==T)] = 0
 vars_dam$P1Q2.5.2.4[which(is.na(vars_dam$P1Q2.5.2.4)==T)] = 0
 vars_dam$P1Q2.9.1[which(is.na(vars_dam$P1Q2.9.1)==T)] = 99
 vars_dam$P1Q2.9.2[which(is.na(vars_dam$P1Q2.9.2)==T)] = 99
 
-
+## FIXED: same matrix indicates 0 when events are different, 1 if events are identical !
 ## Same matrix indicates 1 for a given damage variable when households have different value for ev1& ev2, 0 when households have same value for ev1&ev2
 ## It is assumed that if the damage variables value are same for the 2 events then the two events are the same. 
 same= matrix(,nrow=252,ncol=40)
 for(i in 1:40){
-  same[which(as.character(vars_dam[,i]) == as.character(vars_dam[,i+40])),i] = 1
+  same[which(as.character(vars_dam[,i]) != as.character(vars_dam[,i+40])),i] = 1
+  same[which(as.character(vars_dam[,i]) == as.character(vars_dam[,i+40])),i] = 0
   #same[which(as.numeric(as.character(vars_dam[,i])) != as.numeric(as.character(vars_dam[,i+40]))),i] = 0
-  same[which(as.character(vars_dam[,i]) != as.character(vars_dam[,i+40]) ),i] = 0
 }
 
 vars_dam$same = apply(same, 1, function(x) {ifelse(any(x==0), 0, 1)})## sum(pre_vars$same, na.rm= TRUE) = 469 cases of ev1 = ev2 and 531 cases of ev1!=ev2
