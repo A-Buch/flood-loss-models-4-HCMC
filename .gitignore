@@ -1,8 +1,12 @@
 input_survey_data/
 *.xlsx  # make sure that no survey-data or its modified versions is pushed to repo
+model_preprocessing/Feature_selection/models_trained/
 *.sav
 *.Rdata
-model_preprocessing/Feature_selection/models_trained/
+
+*.md
+*.html
+
 
 
 # Byte-compiled / optimized / DLL files
