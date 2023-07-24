@@ -4,9 +4,6 @@
 
 
 import numpy as np
-import pandas as pd
-import geopandas as gpd
-from shapely import wkt
 
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 from scipy.stats import pearsonr
@@ -14,8 +11,6 @@ from scipy.stats import pearsonr
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import seaborn as sns
-import contextily as cx
-import mplleaflet as mpl
 
 
 def plot_scatterplot_3d(df, x, y, z):
@@ -58,3 +53,35 @@ def plot_pearsoncorrelation(df_sm_corr, signif=True, psig=0.05):
         texts = [f"not significant (at {psig})"]
         patches = [ mpatches.Patch(color=colors[i], label="{:s}".format(texts[i]) ) for i in range(len(texts)) ]
         plt.legend(handles=patches, bbox_to_anchor=(.85, 1.05), loc='center')
+
+
+
+def plot_feature_importance(coefs, n=10, figure_size=(20, 15), target="_ "):
+    """
+    coefs: pd.Series or Dataframe with feautre names and coefficients 
+    n (int): show only the n-th most important features 
+    figure_size (tuple): height and width of plot
+    target =
+    Return: feature importance plot
+    """
+    plt.rcdefaults()
+    fig, ax = plt.subplots()
+    fig.size = figure_size
+
+    y_pos = np.arange(len(coefs.index))
+
+    ax.barh(y_pos[0:10], coefs.values[0:n])
+    ax.set_yticks(y_pos[0:n])
+    ax.set_yticklabels(coefs.index[0:n])
+    ax.invert_yaxis()  # labels read top-to-bottom
+    ax.set_xlabel('Coefficents', size=14)
+    ax.set_ylabel('Features', size=14)
+    ax.set_title(f'Conditinal Inference Tree \nFeature Importance for {target.split("_")[1]}', size=20)
+    #plt.grid(axis='y')
+    #plt.grid(axis='x')
+    ax.set_axisbelow(True)
+    for index, value in enumerate(np.around(coefs.values[0:n],1)):
+        plt.text(value, index, str(value))
+    plt.show()
+
+    

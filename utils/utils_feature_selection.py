@@ -7,7 +7,6 @@ import pandas as pd
 
 # load r library initally
 #%load_ext rpy2.ipython
-
 import rpy2
 import rpy2.robjects as robjects
 from rpy2.robjects.packages import importr
@@ -24,6 +23,7 @@ dplyr = importr('dplyr')
 stats = importr("stats")
 # get partykit library containing ctree , ctree_controls etc
 partykit = importr('partykit')
+
 
 
 def r_ctree_statistics(model):
@@ -53,6 +53,7 @@ def r_ctree_statistics(model):
     df_ctree_stats = df_ctree_stats.T
 
     return df_ctree_stats
+
 
 def kfold_cross_validation():
     """    
