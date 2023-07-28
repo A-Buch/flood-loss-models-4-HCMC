@@ -32,13 +32,13 @@ def evaluation_report(y_true, y_pred):
     mape = mean_absolute_percentage_error(y_true, y_pred)
     r2c = r2_score(y_true, y_pred)
 
-    print(f"""
-    Model Performance:
+    print(
+    f"""Model Performance:
         Mean Squared Error: {round(mse,1)}
         Root Mean Square Error: {round(rmse,1)}
         Mean Absolute Error: {round(mae,1)}
         Mean Absolute Percentage Error: {round(mape,1)}
-        R²-Score: {round(r2c,1)}
+        R²-Score: {round(r2c,2)}
     """
     )
 #    return mse, rmse, mae, mape, r2c
