@@ -14,6 +14,7 @@ import rpy2
 import rpy2.robjects as robjects
 from rpy2.robjects.packages import importr
 from rpy2.robjects import pandas2ri # pandas.DataFrames to R dataframes 
+from rpy2.robjects.conversion import localconverter
 import rpy2.ipython.html # print r df in html
 
 pandas2ri.activate()
@@ -113,6 +114,18 @@ def r_best_hyperparamters(model):
     ''')
     r_best_hyperparamters = robjects.globalenv['r_best_hyperparamters']
     return (r_best_hyperparamters(model))
+
+
+
+def r_dataframe_to_pandas(df):
+    """
+    Convert a R DataFrame to a Pandas DataFrame by keeping column names
+    df : R DataFrame 
+    return: pandas DataFrame
+    """
+    with localconverter(robjects.default_converter + pandas2ri.converter):
+        pd_dataframe = robjects.conversion.rpy2py(df)
+    return pd_dataframe
 
 
 def r_models_cv_results(model):
