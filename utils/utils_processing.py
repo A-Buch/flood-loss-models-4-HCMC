@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""Utility functions for data cleaning"""
+"""Utility functions"""
 
 
 import numpy as np
