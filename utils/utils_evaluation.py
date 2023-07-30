@@ -33,11 +33,11 @@ def evaluation_report(y_true, y_pred):
 
     print(
     f"""Model Performance:
-        Mean Squared Error: {round(mse,1)}
-        Root Mean Square Error: {round(rmse,1)}
-        Mean Absolute Error: {round(mae,1)}
-        Mean Absolute Percentage Error: {round(mape,1)}
-        R²-Score: {round(r2c,2)}
+        Mean Squared Error: {round(mse,2)}
+        Root Mean Square Error: {round(rmse,2)}
+        Mean Absolute Error: {round(mae,2)}
+        Mean Absolute Percentage Error: {round(mape,2)}
+        R²-Score: {round(r2c,3)}
     """
     )
 #    return mse, rmse, mae, mape, r2c

@@ -44,7 +44,11 @@ def equal_freq_binning(df, variable_name, cuts=3, group_labels=["low", "medium",
     print("Group labels and bins :", group_labels, pd.qcut(df[variable_name], q=cuts).value_counts())
 
     new_variable_name = variable_name + "_c"
-    df[new_variable_name] = pd.qcut(df[variable_name], q=cuts, labels=group_labels)
+    try:
+        df[new_variable_name] = pd.qcut(df[variable_name], q=cuts, labels=group_labels)
+    except:
+        print("drop dublicates")
+        df[new_variable_name] = pd.qcut(df[variable_name], q=cuts, duplicates="drop")
 
     if drop_old_variable == True:
         df = df.drop(variable_name, axis=1)
