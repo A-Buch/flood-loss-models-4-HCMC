@@ -4,7 +4,7 @@
 
 import numpy as np
 import pandas as pd
-from sklearn.metrics import mean_squared_error, mean_absolute_error, median_absolute_error, r2_score, classification_report
+from sklearn.metrics import mean_squared_error, mean_absolute_error, mean_absolute_percentage_error, r2_score, classification_report
 from sklearn.inspection import permutation_importance
 
 import utils.settings as s
@@ -13,9 +13,9 @@ s.init()
 seed = s.seed
 
 
-def mean_absolute_percentage_error(y_true, y_pred): 
-    """" Calculate  MAPE from predicted and actual target  """
-    return np.mean(np.abs((y_true - y_pred) / y_true)) * 100
+# def mean_absolute_percentage_error(y_true, y_pred): 
+    # """" Calculate  MAPE from predicted and actual target  """
+    # return np.mean(np.abs((y_true - y_pred) / y_true)) * 100
 
 
 def evaluation_report(y_true, y_pred): 
@@ -28,8 +28,10 @@ def evaluation_report(y_true, y_pred):
     mse = np.mean((y_true - y_pred)**2)
     rmse = np.sqrt(mse)
     mae = mean_absolute_error(y_true, y_pred)#np.mean((np.abs(y_true - y_pred)**2))
-    mape = mean_absolute_percentage_error(y_true, y_pred)
-    r2c = r2_score(y_true, y_pred)
+    #mape = mean_absolute_percentage_error(y_true, y_pred)
+    r2c = 1 - (mean_squared_error(y_true, y_pred) / y_true.var())
+    r2c = r2c *100
+    #r2_score(y_true, y_pred)
 
     print(
     f"""Model Performance:
