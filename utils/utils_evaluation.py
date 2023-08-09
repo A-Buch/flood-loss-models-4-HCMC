@@ -12,6 +12,22 @@ import utils.settings as s
 s.init()
 seed = s.seed
 
+def mean_bias_error(y_true, y_pred):
+    y_true = np.array(y_true)
+    y_pred = np.array(y_pred)
+    y_true = y_true.reshape(len(y_true),1)
+    y_pred = y_pred.reshape(len(y_pred),1)   
+    diff = (y_true-y_pred)
+    mbe = diff.mean()
+
+    return mbe
+
+def normalized_root_mean_squared_error(y_true, y_pred):
+    squared_error = np.square((y_true - y_pred))
+    sum_squared_error = np.sum(squared_error)
+    rmse = np.sqrt(sum_squared_error / y_true.size)
+    nrmse_loss = rmse/np.std(y_pred)
+    return nrmse_loss
 
 def mean_absolute_percentage_error(y_true, y_pred): 
     """" Calculate  MAPE from predicted and actual target  """
@@ -23,20 +39,21 @@ def evaluation_report(y_true, y_pred):
     Print model performance evaluation between predicted and actual target
     y_true : actual y 
     y_pred : predicted y
-    #return : evaluation metrics:  mse, rmse, mae, mape, r2
+    #return : evaluation metrics:  mse, rmse, mbe, mape, r2
     """
     mse = np.mean((y_true - y_pred)**2)
     rmse = np.sqrt(mse)
+    nrmse = normalized_root_mean_squared_error(y_true, y_pred)
     mae = mean_absolute_error(y_true, y_pred)#np.mean((np.abs(y_true - y_pred)**2))
-    mape = mean_absolute_percentage_error(y_true, y_pred)
+    mbe = mean_bias_error(y_true, y_pred)
     r2c = r2_score(y_true, y_pred)
 
     print(
     f"""Model Performance:
-        Mean Squared Error: {round(mse,2)}
         Root Mean Square Error: {round(rmse,2)}
+        Normalized Root Mean Square Error: {round(nrmse,2)}
         Mean Absolute Error: {round(mae,2)}
-        Mean Absolute Percentage Error: {round(mape,2)}
+        Mean Bias Error: {round(mbe,2)}
         R²-Score: {round(r2c,3)}
     """
     )
