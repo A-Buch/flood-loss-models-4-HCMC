@@ -4,7 +4,5 @@
 
 
 def init():
-    global seed, zero_loss_ratio
+    global seed
     seed = 42
-    zero_loss_ratio = 0.5  # Fetue selection: keep only 25% of records with zero values
-
