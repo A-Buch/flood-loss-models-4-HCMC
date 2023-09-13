@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""Utility functions"""
+"""Utility functions for preprocessing"""
 
 import os
 import numpy as np
 import json
+
 
 def load_config(config_file):
     """
