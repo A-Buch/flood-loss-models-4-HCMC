@@ -1,10 +1,24 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""Utility functions"""
+"""Utility functions for preprocessing"""
 
-
+import os
 import numpy as np
+import json
 
+
+def load_config(config_file):
+    """
+    Load config file
+    :param config_file: path to config file (str)
+    :return:
+    """
+    assert os.path.exists(
+        config_file
+    ), f"Configuration file does not exist: {os.path.abspath(config_file)}"
+    with open(config_file, "r") as src:
+        config = json.load(src)
+    return config
 
 def drop_object_columns(df):
     """
