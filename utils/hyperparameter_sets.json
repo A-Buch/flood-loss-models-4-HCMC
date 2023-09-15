@@ -1,12 +1,12 @@
 {
-    "logisticreg_hyperparameters":{
+    "logreg_hyperparameters":{
         "model__penalty": ["elasticnet"],
         "model__tol": [0.0001, 0.001, 0.01, 0.1, 0.5],
         "model__C": [1,2,3,4, 5, 6, 7, 8, 9],
         "model__max_iter": [1,2,3,4],
         "model__l1_ratio": [0.0, 0.25, 0.5, 0.75, 1.0],
         "model__solver": ["saga"],
-        "model__class_weight": ["None", "balanced"],
+        "model__class_weight": ["balanced"],
         "model__random_state": [42]
     },
     "xgb_hyperparameters":{
@@ -15,7 +15,7 @@
         "model__booster": ["gblinear"],
         "model__seed":[42]
     },
-    "elasticnet_hyperparameters":{
+    "en_hyperparameters":{
         "model__alpha": [ 0.1, 1, 2, 3, 4, 5, 6],
         "model__max_iter": [1,2,3,4,5, 8, 10],
         "model__l1_ratio": [0.0, 0.25, 0.5, 0.75, 1.0],
