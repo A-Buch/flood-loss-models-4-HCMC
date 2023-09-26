@@ -5,15 +5,16 @@
 import joblib
 import numpy as np
 
-from sklearn.ensemble import BaggingRegressor
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.ensemble import BaggingRegressor, BaggingClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.linear_model import ElasticNet
 from xgboost import XGBRegressor
 
 from sklearn.pipeline import Pipeline
 # from imblearn.pipeline import Pipeline
-from sklearn.preprocessing import QuantileTransformer, quantile_transform, PowerTransformer, power_transform
-from sklearn.compose import TransformedTargetRegressor
+#from sklearn.preprocessing import QuantileTransformer, quantile_transform, PowerTransformer, power_transform
+#rom sklearn.compose import TransformedTargetRegressor
 
 import utils.settings as s
 
@@ -26,84 +27,66 @@ def main():
 
     ############ Logistic Regression ##########
 
-    pipe_logreg = Pipeline( steps = [ ('model', LogisticRegression()) ] )
+    pipe_logreg = Pipeline( steps = [('scaler', MinMaxScaler()), ('model', LogisticRegression()) ] )
 
     # Logistic Regression with Bagging   #TODO check if LogReg with Bagging really makes sense? 
     ensemble_model = {
-        'model': BaggingRegressor,   # default bootstrap=True
-        'kwargs': {'estimator': LogisticRegression(),  # estimator -> variable from Bagging Regressor
-                   'bootstrap': True,
+        'model': BaggingClassifier(),   # default bootstrap=True
+        'kwargs': {'estimator': LogisticRegression(), #random_state=seed),  # estimator -> variable from Bagging Regressor
+                   #'bootstrap': True,
                    #'random_state':seed
-                  }  # TODO: pass 'random_state':seed to baggingregressor
+                  }#,  # TODO: pass 'random_state':seed to baggingregressor
+         #'parameters':
     }
-    pipe_bag_logreg = Pipeline([
+    pipe_logreg_bag = Pipeline([
+        ('scaler', MinMaxScaler()),
         ('bagging', ensemble_model['model'] (**ensemble_model['kwargs']) )
     ])
+    # model = {'model': BaggingClassifier,   # default bootstrap=True
+        # 'kwargs': {'estimator': LogisticRegression()},  # TODO: pass 'random_state':seed to baggingregressor
+        # 'parameters': param_grid,
+        # }
+    
+    # pipeline = Pipeline( steps = [('name', model['model'] (**model['kwargs']) ) ]  )  # pipeline for Bagging method
 
 
     ############  Elastic Net  ##################
 
-    pipe_en = Pipeline( steps = [ ('model', ElasticNet()) ] )
+    pipe_en = Pipeline( steps = [('scaler', MinMaxScaler()), ('model', ElasticNet(random_state=seed)) ] )
 
     # Elastic Net with Bagging
     ensemble_model = {
         'model': BaggingRegressor,   # default bootstrap=True
-        'kwargs': {'estimator': ElasticNet(),  # estimator -> variable from Bagging Regressor
+        'kwargs': {'estimator': ElasticNet(random_state=seed),  # estimator -> variable from Bagging Regressor
                    'bootstrap': True,
                    #'random_state':seed
                   }  # TODO: pass 'random_state':seed to baggingregressor
     }
-    pipe_bag_en = Pipeline([
+    pipe_en_bag = Pipeline([
+        ('scaler', MinMaxScaler()),
         ('bagging', ensemble_model['model'] (**ensemble_model['kwargs']) )
     ])
 
 
     ############  XGBoost Regressor  ##################
 
-    pipe_xgb = Pipeline( steps = [ ('model', XGBRegressor()) ] )
+    pipe_xgb = Pipeline( steps = [('scaler', MinMaxScaler()), ('model', XGBRegressor(random_state=seed)) ] )
 
-    ### Transformation: natural log
-    pipe_xgb_log = Pipeline([
-        ('model', TransformedTargetRegressor(regressor=XGBRegressor(),
-            func=np.log1p, inverse_func=np.expm1)
-        )])  # np.expm1 = provides greater precision than exp(x) - 1 for small values of x.
 
-    ###  Transformation: quantile
-    pipe_xgb_quantile = Pipeline([
-                ('model', TransformedTargetRegressor(regressor=XGBRegressor(),
-                    transformer=QuantileTransformer(n_quantiles=100, output_distribution="normal"))
-                )])
-
-    ###  Transformation: Box-cox 
-    pipe_xgb_boxcox = Pipeline([
-                ('model', TransformedTargetRegressor(regressor=XGBRegressor(),
-                    transformer=PowerTransformer(method="box-cox", standardize=False) # def=False:
-                    #func=np.reciprocal, inverse_func=np.expm1
-                    )
-                )])
-
-    ###  Transformation: square root 
-    pipe_xgb_sqrt = Pipeline([
-        ('model', TransformedTargetRegressor(regressor=XGBRegressor(),
-            func=np.sqrt, inverse_func=np.square #np.expm1
-        )
-        )])
+    ###########  Conditional Random Forest ##############
+    pipe_crf = None
+    ## TODO try if its possible to add R-based model settings into python Pipeline()
 
 
     joblib.dump(pipe_logreg, './pipelines/pipe_logreg.pkl')
-    joblib.dump(pipe_bag_logreg, './pipelines/pipe_bag_logreg.pkl')
+    joblib.dump(pipe_logreg_bag, './pipelines/pipe_logreg_bag.pkl')
 
     joblib.dump(pipe_en, './pipelines/pipe_en.pkl')
-    joblib.dump(pipe_bag_en, './pipelines/pipe_bag_en.pkl')
-    joblib.dump(pipe_en_quantile, './pipelines/pipe_en_quantile.pkl')
-    joblib.dump(pipe_en_boxcox, './pipelines/pipe_en_boxcox.pkl')
-    joblib.dump(pipe_en_sqrt, './pipelines/pipe_en_sqrt.pkl')
+    joblib.dump(pipe_en_bag, './pipelines/pipe_en_bag.pkl')
 
     joblib.dump(pipe_xgb, './pipelines/pipe_xgb.pkl')
-    joblib.dump(pipe_xgb_quantile, './pipelines/pipe_xgb_quantile.pkl')
-    joblib.dump(pipe_xgb_boxcox, './pipelines/pipe_xgb_boxcox.pkl')
-    joblib.dump(pipe_xgb_sqrt, './pipelines/pipe_xgb_sqrt.pkl')
 
+    joblib.dump(pipe_crf, './pipelines/pipe_crf.pkl')
 
 
 if __name__ == "__main__":
