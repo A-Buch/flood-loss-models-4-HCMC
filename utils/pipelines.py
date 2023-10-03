@@ -27,12 +27,12 @@ def main():
 
     ############ Logistic Regression ##########
 
-    pipe_logreg = Pipeline( steps = [('scaler', MinMaxScaler()), ('model', LogisticRegression()) ] )
+    pipe_logreg = Pipeline( steps = [('scaler', MinMaxScaler()), ('model', LogisticRegression(random_state=seed)) ] )
 
     # Logistic Regression with Bagging   #TODO check if LogReg with Bagging really makes sense? 
     ensemble_model = {
-        'model': BaggingClassifier(),   # default bootstrap=True
-        'kwargs': {'estimator': LogisticRegression(), #random_state=seed),  # estimator -> variable from Bagging Regressor
+        'model': BaggingClassifier,   # default bootstrap=True
+        'kwargs': {'estimator': LogisticRegression(random_state=seed),  # estimator -> variable from Bagging Regressor
                    #'bootstrap': True,
                    #'random_state':seed
                   }#,  # TODO: pass 'random_state':seed to baggingregressor
@@ -42,12 +42,6 @@ def main():
         ('scaler', MinMaxScaler()),
         ('bagging', ensemble_model['model'] (**ensemble_model['kwargs']) )
     ])
-    # model = {'model': BaggingClassifier,   # default bootstrap=True
-        # 'kwargs': {'estimator': LogisticRegression()},  # TODO: pass 'random_state':seed to baggingregressor
-        # 'parameters': param_grid,
-        # }
-    
-    # pipeline = Pipeline( steps = [('name', model['model'] (**model['kwargs']) ) ]  )  # pipeline for Bagging method
 
 
     ############  Elastic Net  ##################
