@@ -37,7 +37,9 @@ def mean_absolute_percentage_error(y_true, y_pred):
 def symmetric_mean_absolute_percentage_error(y_true, y_pred):
     return 1/len(y_true) * np.sum(2 * np.abs(y_pred - y_true) / (np.abs(y_true) + np.abs(y_pred)) * 100)
 
-
+def root_mean_squared_error(y_true, y_pred):
+    return  np.sqrt( np.mean((y_true - y_pred)**2) )
+   
 def evaluation_report(y_true, y_pred): 
     """
     Print model performance evaluation between predicted and actual target
@@ -45,8 +47,7 @@ def evaluation_report(y_true, y_pred):
     y_pred : predicted y
     #return : evaluation metrics:  mse, rmse, mbe, mape, r2
     """
-    mse = np.mean((y_true - y_pred)**2)
-    rmse = np.sqrt(mse)
+    rmse = root_mean_squared_error(y_true, y_pred)
     smape = symmetric_mean_absolute_percentage_error(y_true, y_pred)
     mae = mean_absolute_error(y_true, y_pred)#np.mean((np.abs(y_true - y_pred)**2))
     mbe = mean_bias_error(y_true, y_pred)
