@@ -5,10 +5,28 @@
 import numpy as np
 import pandas as pd
 from sklearn.metrics import mean_squared_error, mean_absolute_error, median_absolute_error, r2_score, classification_report
-from sklearn.inspection import permutation_importance
+from sklearn.inspection import permutation_importance, partial_dependence
 from scipy import stats
 
+
+import rpy2
+import rpy2.robjects as robjects
+
+# load r library initally
+#%load_ext rpy2.ipython
+
+import rpy2
+import rpy2.robjects as robjects
+from rpy2.robjects.packages import importr
+from rpy2.robjects import pandas2ri # pandas.DataFrames to R dataframes 
+
+pandas2ri.activate()
+rpy2.ipython.html.init_printing()
+pdp = importr("pdp")
+
 import utils.settings as s
+import utils.utils_feature_selection as fs
+
 
 s.init()
 seed = s.seed
@@ -130,4 +148,56 @@ def permutation_feature_importance(model, X_test, y_test, repeats=10, seed=seed)
     # permutation_fi = pd.DataFrame(permutation_fi_matrix, index=X_test.columns, columns=['importances'])#.transpose()
 
     return permutation_fi.importances_mean, permutation_fi.importances_std, permutation_fi.importances
+
+
+def r_models_cv_results(model):
+    """
+    Get training results for all tested model settings during CV and tunning in R
+    """
+    robjects.r('''
+        r_models_cv_results <- function(m, verbose=FALSE) {
+            m$results
+        }
+    ''')
+    r_models_cv_results = robjects.globalenv['r_models_cv_results']
+    return (r_models_cv_results(model))
+    
+
+def r_models_cv_predictions(model, idx=0):
+    """
+    Get y_pred and y_true for a certain model during CV in R
+    model : R model from nestedcv.train()
+    idx (int): index position of trained model from inner cv
+    return: pandas Dataframe with y_pred and y_test values 
+    """
+    robjects.r('''
+        r_models_cv_predictions <- function(m, idx, verbose=FALSE) {
+            m$outer_result[[idx]]$preds
+        }
+    ''') 
+    r_model_prediction = robjects.globalenv['r_models_cv_predictions']
+
+    return fs.r_dataframe_to_pandas(r_model_prediction(model, idx))
+
+
+def r_partial_dependence(model, df, predictor_name):
+    """
+    Get y_pred and y_true for a certain model during CV in R
+    model : R model from nestedcv.train()
+    df: pandas DataFrame with target and features used in nestedcv.train()
+    return: pandas Dataframe with gridvalues [yhat] and partial depnedences for single feature 
+    """
+    robjects.r('''
+        r_pdp <- function(m, df, predictor_name, verbose=FALSE) {
+            pdp::partial(
+                m, 
+                train=df,
+                pred.var=predictor_name,
+                type="regression",
+                plot=FALSE
+            )  
+        }
+        ''') #  , plot=FALSE --> to get pdp values
+    return robjects.globalenv['r_pdp'] 
+    
 
