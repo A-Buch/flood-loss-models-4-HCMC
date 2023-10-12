@@ -32,7 +32,7 @@ def plot_spearman_rank(df_corr, min_periods=100, signif=True, psig=0.05):
 
         df_corr (dataframe): dataframe with variables to plot
         min_periods (int): Minimum number of observations required per pair of columns to have a valid result
-        signifcance (boolean): should non significant be masked
+        signif (boolean): should non significant be masked
         psig (float): signifcance level
         return: Figure for Pearson Correlation 
         """ 
@@ -41,10 +41,15 @@ def plot_spearman_rank(df_corr, min_periods=100, signif=True, psig=0.05):
         pvals = df_corr.corr(method=lambda x, y: spearmanr(x, y)[1], min_periods=min_periods) - np.eye(*df_corr.corr(method="spearman", min_periods=min_periods).shape)  # np.eye(): diagonal= ones, elsewere=zeros
 
         #  main plot
-        sns.heatmap(df_corr.corr(method="spearman", min_periods=min_periods), annot=False, square=True, cmap="RdBu", fmt=".2f", zorder=1)
+        sns.heatmap(
+            df_corr.corr(method="spearman", min_periods=min_periods), 
+            annot=False, square=True, 
+            center=0, cmap="RdBu", 
+            fmt=".2f", zorder=1,
+        )
 
         # signifcance mask
-        if signif == True:
+        if signif:
                 ## add another heatmap with colouring the non-significant cells
                 sns.heatmap(df_corr.corr(method="spearman", min_periods=min_periods)[pvals>=psig], 
                             annot=False, square=True, cbar=False,
