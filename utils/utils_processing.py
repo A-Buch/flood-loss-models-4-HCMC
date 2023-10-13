@@ -4,7 +4,11 @@
 
 import os
 import numpy as np
+import pandas as pd
 import json
+
+from dataclasses import dataclass
+import difflib
 
 
 def load_config(config_file):
@@ -55,3 +59,32 @@ def check_types(x):
             return float(x)
     else:
         return x
+
+
+@dataclass()
+class FuzzyMerge:
+    """
+        Works like pandas merge except also merges on approximate matches.
+        modified from: https://stackoverflow.com/questions/74778263/python-merge-two-dataframe-based-on-text-similarity-of-their-columns
+    """
+    left: pd.DataFrame
+    right: pd.DataFrame
+    left_on: str
+    right_on: str
+    how: str = "left" # "inner"  
+    n: int = 1  # match with best one
+    cutoff: float = 0.6  #  higher cutoff == more strict in matching, TODO make cutoff as variable,
+
+    def main(self) -> pd.DataFrame:
+        temp = self.right.copy()
+        temp[self.left_on] = [
+            self.get_closest_match(x, self.left[self.left_on]) for x in temp[self.right_on]
+        ]
+
+        return self.left.merge(temp, on=self.left_on, how=self.how)
+
+    def get_closest_match(self, left: pd.Series, right: pd.Series) -> str or None:
+        matches = difflib.get_close_matches(left, right, n=self.n, cutoff=self.cutoff)
+
+        return matches[0] if matches else None
+        
