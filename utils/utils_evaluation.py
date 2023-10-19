@@ -4,13 +4,10 @@
 
 import numpy as np
 import pandas as pd
-from sklearn.metrics import mean_squared_error, mean_absolute_error, median_absolute_error, r2_score, classification_report
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.metrics import mean_absolute_error, r2_score
 from sklearn.inspection import permutation_importance, partial_dependence
 from scipy import stats
-
-
-import rpy2
-import rpy2.robjects as robjects
 
 # load r library initally
 #%load_ext rpy2.ipython
@@ -88,66 +85,131 @@ def compute_score(y_true, y_pred):
     https://scikit-learn.org/stable/auto_examples/compose/plot_transformed_target.html
     """
     return {
-        "R2": f"{r2_score(y_true, y_pred):.3f}",
-        "MedAE": f"{median_absolute_error(y_true, y_pred):.3f}", # TODO check pros compared to MAE
+        "MAE": f"{mean_absolute_error(y_true, y_pred):.3f}",
+        "RMSE": f"{root_mean_squared_error(y_true, y_pred):.3f}",
     }
 
 
-def empirical_vs_predicted(X_test, y_test, models_list):
+class model_evaluation(object):
     """
-    models_list (list): in the order [model_notransform, model_log, model_quantile, model_boxcox, model_sqrt]  # TODO robustify, remove hardcodes
-    return df with statistics
+    
     """
-    empirical_vs_predicted = [] 
+    
+    def empirical_vs_predicted(self, X_test, y_test, models_list):
+        """
+        models_list (list): in the order [model_notransform, model_log, model_quantile, model_boxcox, model_sqrt]  # TODO robustify, remove hardcodes
+        return df with statistics
+        """
+        empirical_vs_predicted = [] 
 
-    for idx, test_set in enumerate([y_test, models_list[0].predict(X_test), models_list[1].predict(X_test), models_list[2].predict(X_test), models_list[3].predict(X_test), models_list[4].predict(X_test)]):
-        test_statistics = stats.describe(test_set) 
-        empirical_vs_predicted.append(
-            pd.Series(
-            {
-                'nobs':  test_statistics[0],
-                'median': np.median(test_set), #round(test_statistics[2], 2),
-                'mean':  np.mean(test_set),# round(test_statistics[3], 2),
-                'min max':  [test_statistics[1][0], test_statistics[1][1]],
-                'variance': round(test_statistics[4], 2),
-            }
+        for idx, test_set in enumerate([y_test, models_list[0].predict(X_test), models_list[1].predict(X_test), models_list[2].predict(X_test), models_list[3].predict(X_test), models_list[4].predict(X_test)]):
+            test_statistics = stats.describe(test_set) 
+            empirical_vs_predicted.append(
+                pd.Series(
+                {
+                    'nobs':  test_statistics[0],
+                    'median': np.median(test_set), #round(test_statistics[2], 2),
+                    'mean':  np.mean(test_set),# round(test_statistics[3], 2),
+                    'min max':  [test_statistics[1][0], test_statistics[1][1]],
+                    'variance': round(test_statistics[4], 2),
+                }
+                )
+            )
+        df_stats = pd.DataFrame(
+            empirical_vs_predicted,
+            index=(
+                ["empirical", "no transform", "natural log", "quantile", "box-cox", "sqrt"]
             )
         )
-    df_stats = pd.DataFrame(
-        empirical_vs_predicted,
-        index=(
-            ["empirical", "no transform", "natural log", "quantile", "box-cox", "sqrt"]
-        )
-    )
-    return df_stats
+        return df_stats
+
+    def permutation_feature_importance(self, model, X_test, y_test, repeats=10, seed=seed):
+    #def permutation_feature_importance(model, X_test, y_test, y_pred, criterion= r2_score):
+        """
+        Calculate permutation based feature importance , the importance scores represents the increase in model error
+        model : trained sklearn model (but not applied on test set)
+        X_test : pdDataframe with independend features from test set
+        y_test : pd.Series with target values from test set
+        y_pred : pd.Series with predicted target values (predicted based on X_test)
+        criterion : sklearn evaluation metrics, default r2_score 
+        
+        return: pd DataFrame with importance scores
+        """
+        permutation_fi = permutation_importance(model, X_test, y_test, n_repeats=repeats, random_state=seed)
+
+        ## self made without multiple repeats  ##
+        # permutation_fi_matrix = []
+        # original_error = criterion(y_test, y_pred) 
+        # for feature in X_test.columns:
+        #     perbutated_data= X_test  # copy.deepcopy(X_test)
+        #     perbutated_data[f"{feature}"] = np.random.permutation(perbutated_data.loc[ : , feature])
+        #     perbutated_pred = model.predict(perbutated_data)
+        #     perbutated_error = criterion(y_test, perbutated_pred)#criterion(y_test, perbutated_pred)
+        #     permutation_fi_matrix.append((original_error - perbutated_error))    
+        # permutation_fi = pd.DataFrame(permutation_fi_matrix, index=X_test.columns, columns=['importances'])#.transpose()
+
+        return permutation_fi.importances_mean, permutation_fi.importances_std, permutation_fi.importances
 
 
-def permutation_feature_importance(model, X_test, y_test, repeats=10, seed=seed):
-#def permutation_feature_importance(model, X_test, y_test, y_pred, criterion= r2_score):
-    """
-    Calculate permutation based feature importance , the importance scores represents the increase in model error
-    model : trained sklearn model (but not applied on test set)
-    X_test : pdDataframe with independend features from test set
-    y_test : pd.Series with target values from test set
-    y_pred : pd.Series with predicted target values (predicted based on X_test)
-    criterion : sklearn evaluation metrics, default r2_score 
+    ## decorator for R model
+    def decorator_func(self, model , Xy, y_name, feature_name, scale=True):
+        """
+        Decorator to get partial dependence instead of python-sklearn-model from R-party-model
+        """
+        def r_get_partial_dependence(func):
+            def wrapper(*args, **kwargs):
     
-    return: pd DataFrame with importance scores
-    """
-    permutation_fi = permutation_importance(model, X_test, y_test, n_repeats=repeats, random_state=seed)
+                X = Xy.dropna().drop(y_name, axis=1)
+        
+                # scaled feature distributions in pd plots across models
+                if scale:
+                    X = pd.DataFrame(
+                        MinMaxScaler().fit_transform(X),
+                        columns=X.columns
+                    )
+                partial_dep = r_partial_dependence(
+                    model, 
+                    Xy,
+                    feature_name
+                    )
+                #return func(*args, **kwargs)
+                return fs.r_dataframe_to_pandas(partial_dep)
+            
+            return wrapper
+        return r_get_partial_dependence
 
-    ## self made without multiple repeats  ##
-    # permutation_fi_matrix = []
-    # original_error = criterion(y_test, y_pred) 
-    # for feature in X_test.columns:
-    #     perbutated_data= X_test  # copy.deepcopy(X_test)
-    #     perbutated_data[f"{feature}"] = np.random.permutation(perbutated_data.loc[ : , feature])
-    #     perbutated_pred = model.predict(perbutated_data)
-    #     perbutated_error = criterion(y_test, perbutated_pred)#criterion(y_test, perbutated_pred)
-    #     permutation_fi_matrix.append((original_error - perbutated_error))    
-    # permutation_fi = pd.DataFrame(permutation_fi_matrix, index=X_test.columns, columns=['importances'])#.transpose()
 
-    return permutation_fi.importances_mean, permutation_fi.importances_std, permutation_fi.importances
+    #@decorator(model=final_models_trained["crf"], Xy=eval_set_list["crf"]["crf"], target_name=target, feature_name="flowvelocity", scale=True) 
+    ## not using decorator @
+    def get_partial_dependence(self, **kwargs):
+        model= kwargs["model"]
+        Xy = kwargs["Xy"]
+        y_name = kwargs["y_name"]
+        feature_name = kwargs["feature_name"]
+        scale = kwargs["scale"]
+
+        X = Xy.dropna().drop(y_name, axis=1)
+
+        # scale feature distributions in pd plots across models
+        if scale:
+            X =  pd.DataFrame(
+                MinMaxScaler().fit_transform(X),
+                columns=X.columns
+            )
+        partial_dep = partial_dependence(   
+            model,
+            X=X,
+            features=feature_name,
+            grid_resolution=X.shape[0],
+            kind="average", 
+            #**further_params,
+        )
+        partial_dep_df = pd.DataFrame({
+            feature_name : partial_dep.grid_values[0],
+                "yhat": partial_dep.average[0]
+            }
+        )
+        return partial_dep_df
 
 
 def r_models_cv_results(model):
@@ -180,12 +242,13 @@ def r_models_cv_predictions(model, idx=0):
     return fs.r_dataframe_to_pandas(r_model_prediction(model, idx))
 
 
-def r_partial_dependence(model, df, predictor_name):
+def r_partial_dependence(model, df, predictor_name:str):
     """
-    Get y_pred and y_true for a certain model during CV in R
-    model : R model from nestedcv.train()
-    df: pandas DataFrame with target and features used in nestedcv.train()
-    return: pandas Dataframe with gridvalues [yhat] and partial depnedences for single feature 
+    Get partial dependence for single predictor from fitted R model
+    model : fitted R model eg. from nestedcv.train()
+    df: pandas DataFrame with target and features used to fit model
+    predictor_name (str): Name of predictor
+    return: pandas Dataframe with gridvalues [yhat] and partial dependences
     """
     robjects.r('''
         r_pdp <- function(m, df, predictor_name, verbose=FALSE) {
@@ -198,6 +261,7 @@ def r_partial_dependence(model, df, predictor_name):
             )  
         }
         ''') #  , plot=FALSE --> to get pdp values
-    return robjects.globalenv['r_pdp'] 
+    r_pdp = robjects.globalenv['r_pdp'] 
+    return r_pdp(model, df, predictor_name)
     
 
