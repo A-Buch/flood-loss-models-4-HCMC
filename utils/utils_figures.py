@@ -6,24 +6,12 @@
 import numpy as np
 import pandas as pd
 
-from statsmodels.stats.outliers_influence import variance_inflation_factor
-from scipy.stats import spearmanr, permutation_test
+from scipy.stats import spearmanr
 from sklearn.metrics import confusion_matrix
 
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import seaborn as sns
-
-
-def plot_scatterplot_3d(df, x, y, z):
-    """
-    df (dataframe): dataframe with variables to plot
-    x (str): column to plot on x axis
-    y (str): column to plot on y axis
-    z (str): column to plot as colors
-    return: Figure for Scatterplot with two independent variables 
-    """         
-    sns.relplot(data=df, x=df[x], y=df[y], hue=df[z]) #aspect=1.61)
 
 
 def plot_spearman_rank(df_corr, min_periods=100, signif=True, psig=0.05):
@@ -63,7 +51,7 @@ def plot_spearman_rank(df_corr, min_periods=100, signif=True, psig=0.05):
         plt.legend(handles=patches, bbox_to_anchor=(.85, 1.05), loc='center')
 
 
-def plot_confusion_matrix(y_test, y_pred, model_name="", target_name="", pipe_name=""):
+def plot_confusion_matrix(y_test, y_pred, model_name="", target_name="", pipe_name="", show_absolute=True, show_normed=True, colorbar=False):
     """ 
     Plot conufsion matrix
     return: plot and dataframe
@@ -78,7 +66,10 @@ def plot_confusion_matrix(y_test, y_pred, model_name="", target_name="", pipe_na
     sns.heatmap(cm, annot=True, 
         annot_kws={"size":16},
         fmt="g", cmap="Blues", 
-        cbar=False
+        show_absolute=show_absolute,
+        show_normed=show_normed,
+        colorbar=colorbar,
+        #cbar=False
      )
     try:
         plt.savefig(f'../../../figures/{model_name}_cm_{target_name}_{pipe_name}_dscrt.png')
@@ -116,4 +107,48 @@ def plot_feature_importance(coefs, n=10, figure_size=(20, 15), target="_ "):
         plt.text(value, index, str(value))
     plt.show()
 
+
+def plot_partial_dependence(df_pd_feature, feature_name:str, partial_dependence_name:str, categorical:list, **kwargs):  # noqa: E501
+    """
+    Creates plots for partial dependecies for multiple models
+    :param model: Model instance
+    :param X_train: 
+    :param feature_names: List of features
+    :param categorical (list): list of features which are categorical
+    :return: Plot of partial dependence
+    """
+    if feature_name in categorical:
+        sns.barplot(
+            data=df_pd_feature, 
+            x=df_pd_feature[feature_name], 
+            y=df_pd_feature[partial_dependence_name], 
+            **kwargs
+        )
+    else:      
+        sns.lineplot(
+            data=df_pd_feature, 
+            
+            x=df_pd_feature[feature_name], 
+            y=df_pd_feature[partial_dependence_name], 
+            legend=False,
+            **kwargs
+        )
+    kwargs["ax"].set_ylabel(feature_name)
+    kwargs["ax"].get_xaxis().set_visible(False)
+
+    # ax.get_yaxis().set_visible(True)
+    kwargs["ax"].tick_params(
+        axis='x',          # changes apply to the x-axis
+        which='both',      # both major and minor ticks are affected
+        bottom='on',      # ticks along the bottom edge are off
+        top='on',         # ticks along the top edge are off
+        labelbottom='off'  # labels along the bottom edge are off)
+        )
+    kwargs["ax"].tick_params(
+        axis='y',
+        which='both',
+        left='on',
+        right='on',
+    )
+    plt.tight_layout()
     
