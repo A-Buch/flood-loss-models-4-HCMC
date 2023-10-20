@@ -7,8 +7,8 @@ model_preprocessing/Feature_selection/models_trained/
 
 *.md
 *.html
-
-
+*.png
+*.jpg
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

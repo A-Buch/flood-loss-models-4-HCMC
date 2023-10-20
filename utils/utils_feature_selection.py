@@ -132,18 +132,25 @@ def r_dataframe_to_pandas(df):
     return pd_dataframe
 
 
-def r_models_cv_results(model):
+
+def r_models_cv_predictions(model, idx=0):
     """
-    Get training results for all tested model settings during CV and tunning in R
+    Get y_pred and y_true for a certain model during CV in R
+    model : R model from nestedcv.train()
+    idx (int): index position of trained model from inner cv
+    return: pandas Dataframe with y_pred and y_test values 
     """
     robjects.r('''
-        r_models_cv_results <- function(m, verbose=FALSE) {
-            m$results
+        r_models_cv_predictions <- function(m, idx, verbose=FALSE) {
+            m$outer_result[[idx]]$preds
         }
-    ''')
-    r_models_cv_results = robjects.globalenv['r_models_cv_results']
-    return (r_models_cv_results(model))
-    
+    ''') 
+    r_model_prediction = robjects.globalenv['r_models_cv_predictions']
+
+    return r_dataframe_to_pandas(r_model_prediction(model, idx))
+
+
+
 
 def vif_score(X_scaled_drop_nan):
     df_vif = pd.DataFrame()
