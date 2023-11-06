@@ -2,6 +2,10 @@
 # -*- coding: utf-8 -*-
 """Utility functions for preprocessing"""
 
+__author__ = "Anna Buch, Heidelberg University"
+__email__ = "a.buch@stud.uni-heidelberg.de"
+
+
 import os
 import numpy as np
 import pandas as pd
@@ -11,7 +15,7 @@ from dataclasses import dataclass
 import difflib
 
 
-def load_config(config_file):
+def load_config(config_file:str):
     """
     Load config file
     :param config_file: path to config file (str)
@@ -53,12 +57,10 @@ def check_types(x):
     :param x: Variable to be converted
     :return:
     """
-
-    if isinstance(x, str):
-        if x.isnumeric():
-            return float(x)
-    else:
+    if not isinstance(x, str):
         return x
+    if x.isnumeric():
+        return float(x)
 
 
 @dataclass()
@@ -73,18 +75,21 @@ class FuzzyMerge:
     right_on: str
     how: str = "left" # "inner"  
     n: int = 1  # match with best one
-    cutoff: float = 0.6  #  higher cutoff == more strict in matching, TODO make cutoff as variable,
+    cutoff: float = 0.9
+    # higher cutoff == more strict in matching, TODO make cutoff as variable,
 
     def main(self) -> pd.DataFrame:
-        temp = self.right.copy()
-        temp[self.left_on] = [
-            self.get_closest_match(x, self.left[self.left_on]) for x in temp[self.right_on]
+        df = self.right.copy()
+        df[self.left_on] = [
+            self.get_closest_match(x, self.left[self.left_on]) 
+            for x in df[self.right_on]
         ]
 
-        return self.left.merge(temp, on=self.left_on, how=self.how)
+        return self.left.merge(df, on=self.left_on, how=self.how) # noqa: E501
 
-    def get_closest_match(self, left: pd.Series, right: pd.Series) -> str or None:
-        matches = difflib.get_close_matches(left, right, n=self.n, cutoff=self.cutoff)
+    def get_closest_match(self, left: pd.Series, right: pd.Series, cutoff=0.9) -> str or None:  # noqa: E501
+        #matches = difflib.get_close_matches(left, right, n=self.n, cutoff=self.cutoff)
+        matches = difflib.get_close_matches(left, right, n=self.n, cutoff=cutoff)
 
         return matches[0] if matches else None
         

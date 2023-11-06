@@ -2,13 +2,15 @@
 # -*- coding: utf-8 -*-
 """Utility functions"""
 
+__author__ = "Anna Buch, Heidelberg University"
+__email__ = "a.buch@stud.uni-heidelberg.de"
+
+
 import pandas as pd
 
 from sklearn.preprocessing import MinMaxScaler
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 
-# load r library initally
-#%load_ext rpy2.ipython
 
 import rpy2
 import rpy2.robjects as robjects
@@ -18,20 +20,14 @@ from rpy2.robjects.conversion import localconverter
 import rpy2.ipython.html # print r df in html
 
 pandas2ri.activate()
-rpy2.ipython.html.init_printing()
+# rpy2.ipython.html.init_printing()
 
-# get basic R packages
-utils = importr('utils')
-base = importr('base')
-dplyr = importr('dplyr')
 stats = importr("stats")
-# get partykit library containing ctree , ctree_controls etc
-partykit = importr('partykit')
-party = importr('party')
 
 
 
-def equal_freq_binning(df, variable_name, cuts=3, group_labels=["low", "medium", "high"], drop_old_variable=False):
+
+def equal_freq_binning(df, variable_name, cuts=3, group_labels=None, drop_old_variable=False):
     """
     Split variable into cateogries, each category with equal number of data points
     df : pandas dataframe
@@ -40,17 +36,19 @@ def equal_freq_binning(df, variable_name, cuts=3, group_labels=["low", "medium",
     group_labels (list): list of length of category number
     return: Dataframe with new discretized variable based on euqal number of datapoints per category
     """
+    if group_labels is None:
+        group_labels = ["low", "medium", "high"]
     print(df.shape[0], "records are euqally split into categories, so that same number of records is in each class (equal frequency binning) ")
     print("Group labels and bins :", group_labels, pd.qcut(df[variable_name], q=cuts).value_counts())
 
     new_variable_name = variable_name + "_c"
     try:
         df[new_variable_name] = pd.qcut(df[variable_name], q=cuts, labels=group_labels)
-    except:
+    except Exception:
         print("drop dublicates")
         df[new_variable_name] = pd.qcut(df[variable_name], q=cuts, duplicates="drop")
 
-    if drop_old_variable == True:
+    if drop_old_variable is True:
         df = df.drop(variable_name, axis=1)
 
     return df
@@ -117,8 +115,7 @@ def r_best_hyperparamters(model):
         }
     ''')
     r_best_hyperparamters = robjects.globalenv['r_best_hyperparamters']
-    return (r_best_hyperparamters(model))
-
+    return r_best_hyperparamters(model)
 
 
 def r_dataframe_to_pandas(df):
@@ -130,26 +127,6 @@ def r_dataframe_to_pandas(df):
     with localconverter(robjects.default_converter + pandas2ri.converter):
         pd_dataframe = robjects.conversion.rpy2py(df)
     return pd_dataframe
-
-
-
-def r_models_cv_predictions(model, idx=0):
-    """
-    Get y_pred and y_true for a certain model during CV in R
-    model : R model from nestedcv.train()
-    idx (int): index position of trained model from inner cv
-    return: pandas Dataframe with y_pred and y_test values 
-    """
-    robjects.r('''
-        r_models_cv_predictions <- function(m, idx, verbose=FALSE) {
-            m$outer_result[[idx]]$preds
-        }
-    ''') 
-    r_model_prediction = robjects.globalenv['r_models_cv_predictions']
-
-    return r_dataframe_to_pandas(r_model_prediction(model, idx))
-
-
 
 
 def vif_score(X_scaled_drop_nan):
@@ -165,7 +142,47 @@ def vif_score(X_scaled_drop_nan):
     return df_vif
 
 
-def save_selected_features(X_train, y_train, selected_feat_cols, filename=f"fs_model.xlsx"):
+def normalize_feature_importances(df_feature_importances, scale_range=(0,10)):
+    """ 
+    Normalize columns of pd.DatFrame to same scale
+    scale_range (tuple of integers): range of scale (min, max) 
+    return: scaled pd.DataFrame 
+    """
+    print(f"Normalize columns to scale: {scale_range[0]} - {scale_range[1]}")
+    ## scale importance scores to  same units (non important feautres were removed before)
+    df_feature_importances = pd.DataFrame(
+        MinMaxScaler(feature_range=scale_range).fit_transform(df_feature_importances), 
+        index=df_feature_importances.index,
+        columns=df_feature_importances.columns
+    )
+    return df_feature_importances
+
+
+def calc_weighted_sum_feature_importances(df_feature_importances, model_weights):
+    """ 
+    model_weights (dict) : keys are feature importnace columns, values are the weights 
+    return: pd.DataFrame same as df_feature_importances 
+    but added column with weighted sum for each feature importance
+    """
+    ## Normalize feature importnaces to same scale
+    df_feature_importances = normalize_feature_importances(df_feature_importances)
+
+    ## assigne weights to importnace scores; weight better models stronger
+    models_fi_list = []
+    for model_fi, weight in model_weights.items(): 
+        model = model_fi.split("_")[0]
+        model_fi_weighted = f"{model_fi}_weighted"
+        df_feature_importances[model_fi_weighted] =  df_feature_importances[model_fi] / weight
+        models_fi_list.append(model_fi_weighted)
+
+    ## derive weighted sum for each feature across all models
+    ## TODO remove hardcode, make flexible to different number of models
+    df_feature_importances["weighted_sum_importances"] = df_feature_importances[models_fi_list].fillna(0).sum(axis=1)
+
+    return df_feature_importances.sort_values("weighted_sum_importances", ascending=True)
+
+
+def save_selected_features(X_train, y_train, selected_feat_cols, filename="fs_model.xlsx"):
     """
     Selects feautres from training set and saves them in excel file
     X_train (df): X training set with predictors
@@ -175,35 +192,15 @@ def save_selected_features(X_train, y_train, selected_feat_cols, filename=f"fs_m
     selected_feat = X_train.loc[:,selected_feat_cols]
     not_selected_feat = X_train.drop( selected_feat, axis=1)
 
-    print("total features: {}".format((X_train.shape[1])))
-    print("selected features: {}".format(len(selected_feat_cols)))
-    print("dropped features: {}".format(len(not_selected_feat.columns)))
-    print("selected features: \n{}\n".format(X_train[selected_feat_cols].columns.to_list()))
-    #print("dropped features: \n{}\n".format(X_train[not_selected_feat.columns].columns.to_list()))
+    print(f"total features: {X_train.shape[1]}")
+    print(f"dropped features: {len(not_selected_feat.columns)}")
+    print(f"selected {len(selected_feat_cols)} features: \n{X_train[selected_feat_cols].columns.to_list()}\n")  # noqa: E501
 
     ## write selected features from training set to disk
     train = pd.concat([y_train, X_train], axis=1)
     df = train[ y_train.columns.to_list() + selected_feat_cols.to_list() ]
-    #df_elastic_net.info()
 
-    print(f"Saving model to disk: {filename}")
+    print(f"Saving selected features to disk: {filename}")
     df.to_excel(filename, index=False)
-
-
-
-# def r_ctree_p(model):
-#     """
-#     model = uses r model inside python of type rpy2.robjects.vectors.ListVector
-#     return: pandas dataframe with p-values    
-#     ## Code snippets: 
-#     ## https://stats.stackexchange.com/questions/171301/interpreting-ctree-partykit-output-in-r, 
-#     ## https://www.askpython.com/python/examples/r-in-python#     """
-#     robjects.r('''
-#         func_p <- function(m, verbose=FALSE) {
-#             nodeapply(m, ids=nodeids(m), function(n) info_node(n)$p.value)
-#         }
-#         ''')
-#     func_p = robjects.globalenv['func_p'] # get r function outside r env
-
 
 
