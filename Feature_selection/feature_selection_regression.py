@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""Data preprocessing for HCMC survey dataset"""
+"""Featue selection with ML models for HCMC survey dataset"""
 
 __author__ = "Anna Buch, Heidelberg University"
 __email__ = "a.buch@stud.uni-heidelberg.de"
@@ -18,10 +18,13 @@ __email__ = "a.buch@stud.uni-heidelberg.de"
 # 
 
 import sys, os
+from datetime import datetime
+import logging
 from pathlib import Path
 import joblib
 import numpy as np
 import pandas as pd
+import re
 import itertools
 
 from sklearn.preprocessing import MinMaxScaler
@@ -86,7 +89,7 @@ targets = ["Target_relative_contentloss_euro", "Target_businessreduction"]
 target = targets[0]
 
 ## settings for cv
-kfolds_and_repeats = 3, 1  # <k-folds, repeats> for nested cv
+kfolds_and_repeats = 2, 1 # 10, 5 # 3, 1  # <k-folds, repeats> for nested cv
 cv = RepeatedKFold(n_splits=kfolds_and_repeats[0], n_repeats=kfolds_and_repeats[1], random_state=seed)
 
 ## save models and their evaluation in following folders:
@@ -127,7 +130,7 @@ df_feature_importances = pd.DataFrame(index=df_candidates.drop(target, axis=1).c
 models_scores = {}
 
 ## iterate over piplines. Each pipline contains a scaler and regressor (and optionally a bagging method) 
-pipelines = ["pipe_crf", "pipe_en", "pipe_xgb"]  
+pipelines = ["pipe_en", "pipe_crf", "pipe_xgb"]  
 # pipelines = ["pipe_en"]  
 
 ## Load set of hyperparamters
@@ -136,7 +139,29 @@ hyperparams_set = pp.load_config("../../utils/hyperparameter_sets.json")
 
 for pipe_name in pipelines:
 
-    model_name = pipe_name.split('_')[1]
+    TIME0 = datetime.now()
+
+   
+    ## load model pipelines
+    pipe = joblib.load(f'./pipelines/{pipe_name}.pkl')
+ 
+    try:
+        model_name = re.findall("[a-zA-Z]+", str(pipe.steps[1][1].__class__).split(".")[-1])[0] # get model name for python models  
+    except AttributeError:
+        model_name = pipe # get R model name
+    
+    ## load respective hyperparameter space
+    pipe = joblib.load(f'./pipelines/{pipe_name}.pkl')
+    param_space = hyperparams_set[f"{model_name}_hyperparameters"]
+
+    ## if bagging fro model training is used , rename hyperparmeters
+    if "bag" in pipe_name.split("_"):
+        print(f"Testing {model_name} with bagging")
+        param_space = { k.replace('model', 'bagging__estimator') : v for (k, v) in param_space.items()}
+
+
+
+
     print( f"\n############ Applying {model_name} on {target} ############\n ")
 
     df_Xy = df_candidates
@@ -154,7 +179,7 @@ for pipe_name in pipelines:
     df_Xy = df_Xy[ ~df_Xy[f"{target}"].isna()]
 
     ## Elastic Net and Random Forest: drop samples where any value is nan
-    if (model_name == "en") | (model_name == "crf"):
+    if (model_name == "ElasticNet") | (model_name == "cforest"):
         df_Xy.dropna(inplace=True)
 
     print(
@@ -168,24 +193,15 @@ for pipe_name in pipelines:
     X = df_Xy[X_names]
     y = df_Xy[target]
 
-    ## load model pipelines and hyperparameter space
-    pipe = joblib.load(f'./pipelines/{pipe_name}.pkl')
-    param_space = hyperparams_set[f"{model_name}_hyperparameters"]
-
-    ## if bagging is used
-    if "bag" in pipe_name.split("_"):
-        print(f"Testing {model_name} with bagging")
-        param_space = { k.replace('model', 'bagging__estimator') : v for (k, v) in param_space.items()}
-
-
-    if model_name != "crf":
+ 
+    if model_name != "cforest":
 
         ## fit model for unbiased model evaluation and for final model used for Feature importance, Partial Dependence etc.
         mf = t.ModelFitting(
             model=pipe, 
             Xy=df_Xy,
             target_name=target,
-            param_space=hyperparams_set[f"{model_name}_hyperparameters"],
+            param_space=param_space,
             tuning_score="neg_mean_absolute_error",
             cv=cv,
             kfolds_and_repeats=kfolds_and_repeats,
@@ -323,10 +339,10 @@ for pipe_name in pipelines:
 
         ## define model settings
         mf = t.ModelFitting(
-            model="cforest",  # name of applied R algorithm 
+            model=pipe,  # pipe contains only name of applied R algorithm 
             Xy=df_Xy,
             target_name=target,
-            param_space=hyperparams_set[f"{model_name}_hyperparameters"],
+            param_space=param_space,
             tuning_score="neg_mean_absolute_error",
             cv=cv,
             kfolds_and_repeats=kfolds_and_repeats,
@@ -385,20 +401,24 @@ for pipe_name in pipelines:
         df_importance[f"{model_name}_importances"],   # only use mean FI, drop std of FI
         left_index=True, right_index=True, how="outer")
     print("5 most important features:", df_feature_importances.iloc[:5].index.to_list())
+
+    print(
+    f"\nTraining and evaluation of {model_name} took {(datetime.now() - TIME0).total_seconds()} seconds\n"
+    )
             
 
 
 ## Print model evaluation based on performance on outer cross-validation 
 ## TODO remove overhead
-xgb_model_evaluation = pd.DataFrame(models_scores["xgb"]).mean(axis=0)  # get mean of outer cv metrics (negative MAE and neg RMSE, pos. R2, pos MBE, posSMAPE)
-xgb_model_evaluation_std = pd.DataFrame(models_scores["xgb"]).std(axis=0)   # get respective standard deviations
-crf__model_evaluation = pd.DataFrame(models_scores["crf"]).mean(axis=0)
-crf_model_evaluation_std = pd.DataFrame(models_scores["crf"]).std(axis=0)
-en_model_evaluation = pd.DataFrame(models_scores["en"]).mean(axis=0)
-en_model_evaluation_std = pd.DataFrame(models_scores["en"]).std(axis=0)
+xgb_model_evaluation = pd.DataFrame(models_scores["XGBRegressor"]).mean(axis=0)  # get mean of outer cv metrics (negative MAE and neg RMSE, pos. R2, pos MBE, posSMAPE)
+xgb_model_evaluation_std = pd.DataFrame(models_scores["XGBRegressor"]).std(axis=0)   # get respective standard deviations
+crf__model_evaluation = pd.DataFrame(models_scores["cforest"]).mean(axis=0)
+crf_model_evaluation_std = pd.DataFrame(models_scores["cforest"]).std(axis=0)
+en_model_evaluation = pd.DataFrame(models_scores["ElasticNet"]).mean(axis=0)
+en_model_evaluation_std = pd.DataFrame(models_scores["ElasticNet"]).std(axis=0)
 
 model_evaluation = pd.concat([en_model_evaluation, en_model_evaluation_std, xgb_model_evaluation, xgb_model_evaluation_std, crf__model_evaluation, crf_model_evaluation_std], axis=1)
-model_evaluation.columns = ["en_score", "en_score_std", "xgb_score", "xgb_score_std", "crf_score", "crf_score_std"]
+model_evaluation.columns = ["ElasticNet_score", "ElasticNet_score_std", "XGBRegressor_score", "XGBRegressor_score_std", "cforest_score", "cforest_score_std"]
 
 model_evaluation.index = model_evaluation.index.str.replace("test_", "")
 model_evaluation.loc["MAE"] = model_evaluation.loc["MAE"].abs()
@@ -418,9 +438,9 @@ print("Outer evaluation scores:\n", model_evaluation.round(3), f"\n.. saved to {
 
 ## weight FI scores based on performance ; weigth importances from better performed models stronger
 model_weights =  {
-    "xgb_importances" : np.abs(models_scores["xgb"]["test_MAE"].mean()),
-    "en_importances" : np.abs(models_scores["en"]["test_MAE"].mean()),
-    "crf_importances" : np.mean(np.abs(models_scores["crf"]["test_MAE"])),
+    "XGBRegressor_importances" : np.abs(models_scores["XGBRegressor"]["test_MAE"].mean()),
+    "ElasticNet_importances" : np.abs(models_scores["ElasticNet"]["test_MAE"].mean()),
+    "cforest_importances" : np.mean(np.abs(models_scores["cforest"]["test_MAE"])),
 }
 
 df_feature_importances_w = fs.calc_weighted_sum_feature_importances(df_feature_importances, model_weights)
@@ -437,9 +457,9 @@ df_feature_importances_plot = df_feature_importances_w
 #df_feature_importances_plot = df_feature_importances_plot.loc[df_feature_importances_plot.weighted_sum_importances > 2, : ] 
 
 f.plot_stacked_feature_importances(
-    df_feature_importances_plot[["crf_importances_weighted", "en_importances_weighted", "xgb_importances_weighted",]],
+    df_feature_importances_plot[["cforest_importances_weighted", "ElasticNet_importances_weighted", "XGBRegressor_importances_weighted",]],
     target_name=target,
-    model_names_plot = ("Conditional Random Forest", "Elastic Net", "XGBoost"),
+    model_names_plot = ("Conditional Random Forest", "Elastic Net", "XGBRegressor"),
     outfile=f"../models_evaluation/degree_of_loss/feature_importances_{target}.jpg"
 )
 
