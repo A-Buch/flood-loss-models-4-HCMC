@@ -1,7 +1,6 @@
-
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""Data preprocessing for HCMC survey dataset"""
+"""Featue selection with ML models for HCMC survey dataset"""
 
 __author__ = "Anna Buch, Heidelberg University"
 __email__ = "a.buch@stud.uni-heidelberg.de"
@@ -18,11 +17,14 @@ __email__ = "a.buch@stud.uni-heidelberg.de"
 # - Random Forest
 # 
 
-import sys
+import sys, os
+from datetime import datetime
+import logging
 from pathlib import Path
 import joblib
 import numpy as np
 import pandas as pd
+import re
 import itertools
 
 from sklearn.preprocessing import MinMaxScaler
@@ -32,6 +34,7 @@ from sklearn.metrics import make_scorer, mean_absolute_error, mean_absolute_erro
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+#sys.path.append(os.getcwd()+ '../../')
 sys.path.insert(0, "../../")
 import utils.feature_selection as fs
 import utils.training as t
@@ -57,9 +60,8 @@ warnings.filterwarnings('ignore')
 # *Note 1: all needed R packages have to be previously loaded in R*
 # *Note 2: Make sure that caret package version >= 6.0-81, otherwise caret.train() throws an error*
 import rpy2
-import rpy2.robjects as robjects
+from rpy2.robjects import pandas2ri, Formula
 from rpy2.robjects.packages import importr, data
-import rpy2.robjects.packages as rpackages
 
 # get basic R packages
 utils = importr('utils')
@@ -68,12 +70,11 @@ dplyr = importr('dplyr')
 stats_r = importr("stats")  # rename due to similar python package
 
 # pandas.DataFrames to R dataframes 
-from rpy2.robjects import pandas2ri, Formula
 pandas2ri.activate()
 
 # print r df in html
-#import rpy2.ipython.html
-#rpy2.ipython.html.init_printing()
+import rpy2.ipython.html
+rpy2.ipython.html.init_printing()
 
 # get libraries for CRF processing, ctree_controls etc
 #partykit = importr('partykit') # for single Conditional Inference tree
@@ -85,21 +86,24 @@ tdr = importr("tdr")
 
 
 targets = ["Target_relative_contentloss_euro", "Target_businessreduction"]
-target = targets[1]
+target = targets[0]
 
 ## settings for cv
-kfolds_and_repeats = 2, 2  # <k-folds, repeats> for nested cv
+kfolds_and_repeats = 2, 1 # 10, 5 # 3, 1  # <k-folds, repeats> for nested cv
 cv = RepeatedKFold(n_splits=kfolds_and_repeats[0], n_repeats=kfolds_and_repeats[1], random_state=seed)
 
 ## save models and their evaluation in following folders:
-Path(f"../models_trained/commercial/nested_cv_models").mkdir(parents=True, exist_ok=True)
-Path(f"../models_trained/commercial/final_models").mkdir(parents=True, exist_ok=True)
-Path(f"../models_evaluation/commercial").mkdir(parents=True, exist_ok=True)
-Path(f"../selected_features/commercial").mkdir(parents=True, exist_ok=True)
+Path(f"../models_trained/degree_of_loss/nested_cv_models").mkdir(parents=True, exist_ok=True)
+Path(f"../models_trained/degree_of_loss/final_models").mkdir(parents=True, exist_ok=True)
+Path(f"../models_evaluation/degree_of_loss").mkdir(parents=True, exist_ok=True)
+Path(f"../selected_features/degree_of_loss").mkdir(parents=True, exist_ok=True)
 
 
-#df_candidates = pd.read_excel("../../input_survey_data/input_data_contentloss_tueb.xlsx")
-df_candidates = pd.read_excel("../../input_survey_data/input_data_businessreduction_tueb.xlsx")
+df_candidates = pd.read_excel("../../input_survey_data/input_data_contentloss_tueb.xlsx")
+#df_candidates = pd.read_excel("../../input_survey_data/input_data_businessreduction_tueb.xlsx")
+
+## test drop flow velocity due to diffenret flooding sources (eg. overwhelmed draingage systems)
+df_candidates = df_candidates.drop("flowvelocity", axis=1)
 
 
 print(df_candidates.shape)
@@ -126,7 +130,8 @@ df_feature_importances = pd.DataFrame(index=df_candidates.drop(target, axis=1).c
 models_scores = {}
 
 ## iterate over piplines. Each pipline contains a scaler and regressor (and optionally a bagging method) 
-pipelines = ["pipe_crf", "pipe_en", "pipe_xgb"]  
+pipelines = ["pipe_en", "pipe_crf", "pipe_xgb"]  
+# pipelines = ["pipe_en"]  
 
 ## Load set of hyperparamters
 hyperparams_set = pp.load_config("../../utils/hyperparameter_sets.json")
@@ -134,8 +139,30 @@ hyperparams_set = pp.load_config("../../utils/hyperparameter_sets.json")
 
 for pipe_name in pipelines:
 
-    model_name = pipe_name.split('_')[1]
-    print( f"\nApplying {model_name} on {target}")
+    TIME0 = datetime.now()
+
+   
+    ## load model pipelines
+    pipe = joblib.load(f'./pipelines/{pipe_name}.pkl')
+ 
+    try:
+        model_name = re.findall("[a-zA-Z]+", str(pipe.steps[1][1].__class__).split(".")[-1])[0] # get model name for python models  
+    except AttributeError:
+        model_name = pipe # get R model name
+    
+    ## load respective hyperparameter space
+    pipe = joblib.load(f'./pipelines/{pipe_name}.pkl')
+    param_space = hyperparams_set[f"{model_name}_hyperparameters"]
+
+    ## if bagging fro model training is used , rename hyperparmeters
+    if "bag" in pipe_name.split("_"):
+        print(f"Testing {model_name} with bagging")
+        param_space = { k.replace('model', 'bagging__estimator') : v for (k, v) in param_space.items()}
+
+
+
+
+    print( f"\n############ Applying {model_name} on {target} ############\n ")
 
     df_Xy = df_candidates
     X_names = df_Xy.drop(target, axis=1).columns.to_list()
@@ -144,7 +171,7 @@ for pipe_name in pipelines:
     if target == "Target_relative_contentloss_euro":
         print(f"Removing {df_Xy.loc[df_Xy[target]==0.0,:].shape[0]} zero loss records")
         df_Xy = df_Xy.loc[df_Xy[target]!=0.0,:]
-        print(f"Keeping {df_Xy.shape} damage cases for model training and evaluation")
+        print(f"Keeping {df_Xy.shape} damage cases (excluding zero-loss cases) for model training and evaluation")
 
 
     ## drop samples where target is nan
@@ -152,38 +179,29 @@ for pipe_name in pipelines:
     df_Xy = df_Xy[ ~df_Xy[f"{target}"].isna()]
 
     ## Elastic Net and Random Forest: drop samples where any value is nan
-    if (model_name == "en") | (model_name == "crf"):
+    if (model_name == "ElasticNet") | (model_name == "cforest"):
         df_Xy.dropna(inplace=True)
 
     print(
         "Using ",
         df_Xy.shape[0],
         " records, from those are ",
-        {(df_Xy[target][df_Xy[target] == 0.0]).count()},
+        (df_Xy[target][df_Xy[target] == 0.0]).count(),
         " cases with zero-loss or zero-reduction",
     )
 
     X = df_Xy[X_names]
     y = df_Xy[target]
 
-    ## load model pipelines and hyperparameter space
-    pipe = joblib.load(f'./pipelines/{pipe_name}.pkl')
-    param_space = hyperparams_set[f"{model_name}_hyperparameters"]
-
-    ## if bagging is used
-    if "bag" in pipe_name.split("_"):
-        print(f"Testing {model_name} with bagging")
-        param_space = { k.replace('model', 'bagging__estimator') : v for (k, v) in param_space.items()}
-
-
-    if model_name != "crf":
+ 
+    if model_name != "cforest":
 
         ## fit model for unbiased model evaluation and for final model used for Feature importance, Partial Dependence etc.
         mf = t.ModelFitting(
             model=pipe, 
             Xy=df_Xy,
             target_name=target,
-            param_space=hyperparams_set[f"{model_name}_hyperparameters"],
+            param_space=param_space,
             tuning_score="neg_mean_absolute_error",
             cv=cv,
             kfolds_and_repeats=kfolds_and_repeats,
@@ -192,7 +210,7 @@ for pipe_name in pipelines:
         models_trained_ncv = mf.model_fit_ncv()
 
         # save models from nested cv and final model on entire ds
-        joblib.dump(models_trained_ncv, f"../models_trained/commercial/nested_cv_models/{model_name}_{target}.joblib")
+        joblib.dump(models_trained_ncv, f"../models_trained/degree_of_loss/nested_cv_models/{model_name}_{target}.joblib")
             
         ## evaluate model    
         me = e.ModelEvaluation(
@@ -229,7 +247,7 @@ for pipe_name in pipelines:
         ## predict on entire dataset and save final model
         y_pred = final_model.predict(X) 
         final_models_trained[model_name] = final_model 
-        joblib.dump(final_model, f"../models_trained/commercial/final_models/{model_name}_{target}.joblib")
+        joblib.dump(final_model, f"../models_trained/degree_of_loss/final_models/{model_name}_{target}.joblib")
 
 
         ## Feature importance of best model
@@ -239,7 +257,7 @@ for pipe_name in pipelines:
         ## regression coefficients for linear models
         with contextlib.suppress(Exception): 
             # models_coef[model_name] = me.calc_regression_coefficients(final_model)
-            # outfile = f"../models_evaluation/commercial/regression_coefficients_{model_name}_{target}.xlsx"
+            # outfile = f"../models_evaluation/regression_coefficients_{model_name}_{target}.xlsx"
             # models_coef[model_name].round(3).to_excel(outfile, index=True)
             # print("Regression Coefficients:\n", models_coef[model_name].sort_values("probabilities", ascending=False), f"\n.. saved to {outfile}")
 
@@ -306,7 +324,7 @@ for pipe_name in pipelines:
                 }, index=range(len(coefs_intercept))
             )
             models_coef[model_name] = model_coef
-            # outfile = f"../models_evaluation/commercial/flash_floods/regression_coefficients_{model_name}_{target}_{year}_{aoi_and_floodtype}.xlsx"
+            # outfile = f"../models_evaluation/degree_of_loss/regression_coefficients_{model_name}_{target}_{year}_{aoi_and_floodtype}.xlsx"
             # models_coef[model_name].round(3).to_excel(outfile, index=True)
             print("Regression Coefficients:\n", models_coef[model_name].sort_values("probabilities", ascending=False))
     
@@ -321,10 +339,10 @@ for pipe_name in pipelines:
 
         ## define model settings
         mf = t.ModelFitting(
-            model="cforest",  # name of applied R algorithm 
+            model=pipe,  # pipe contains only name of applied R algorithm 
             Xy=df_Xy,
             target_name=target,
-            param_space=hyperparams_set[f"{model_name}_hyperparameters"],
+            param_space=param_space,
             tuning_score="neg_mean_absolute_error",
             cv=cv,
             kfolds_and_repeats=kfolds_and_repeats,
@@ -350,7 +368,7 @@ for pipe_name in pipelines:
         for idx in range(1, kfolds_and_repeats[0]+1):  # number of estimators , R counts starting from 1
             df = me.r_models_cv_predictions(idx)  # get all crf estimators from inner cv
             model_evaluation_results_dict['test_MAE'].append(mean_absolute_error(df.testy, df.predy))
-            model_evaluation_results_dict['test_RMSE'].append(np.sqrt( np.mean((df.testy - df.predy)**2) )) #(df.testy, df.predy)
+            model_evaluation_results_dict['test_RMSE'].append(em.root_mean_squared_error(df.testy,df.predy)) #(df.testy, df.predy)
             model_evaluation_results_dict['test_MBE'].append(em.mean_bias_error(df.testy, df.predy))
             model_evaluation_results_dict['test_R2'].append(em.r2_score(df.testy, df.predy))
             model_evaluation_results_dict['test_SMAPE'].append(em.symmetric_mean_absolute_percentage_error(df.testy, df.predy))
@@ -383,29 +401,32 @@ for pipe_name in pipelines:
         df_importance[f"{model_name}_importances"],   # only use mean FI, drop std of FI
         left_index=True, right_index=True, how="outer")
     print("5 most important features:", df_feature_importances.iloc[:5].index.to_list())
+
+    print(
+    f"\nTraining and evaluation of {model_name} took {(datetime.now() - TIME0).total_seconds()} seconds\n"
+    )
             
 
 
 ## Print model evaluation based on performance on outer cross-validation 
 ## TODO remove overhead
-xgb_model_evaluation = pd.DataFrame(models_scores["xgb"]).mean(axis=0)  # get mean of outer cv metrics (negative MAE and neg RMSE, pos. R2, pos MBE, posSMAPE)
-xgb_model_evaluation_std = pd.DataFrame(models_scores["xgb"]).std(axis=0)   # get respective standard deviations
-crf__model_evaluation = pd.DataFrame(models_scores["crf"]).mean(axis=0)
-crf_model_evaluation_std = pd.DataFrame(models_scores["crf"]).std(axis=0)
-en_model_evaluation = pd.DataFrame(models_scores["en"]).mean(axis=0)
-en_model_evaluation_std = pd.DataFrame(models_scores["en"]).std(axis=0)
+xgb_model_evaluation = pd.DataFrame(models_scores["XGBRegressor"]).mean(axis=0)  # get mean of outer cv metrics (negative MAE and neg RMSE, pos. R2, pos MBE, posSMAPE)
+xgb_model_evaluation_std = pd.DataFrame(models_scores["XGBRegressor"]).std(axis=0)   # get respective standard deviations
+crf__model_evaluation = pd.DataFrame(models_scores["cforest"]).mean(axis=0)
+crf_model_evaluation_std = pd.DataFrame(models_scores["cforest"]).std(axis=0)
+en_model_evaluation = pd.DataFrame(models_scores["ElasticNet"]).mean(axis=0)
+en_model_evaluation_std = pd.DataFrame(models_scores["ElasticNet"]).std(axis=0)
 
 model_evaluation = pd.concat([en_model_evaluation, en_model_evaluation_std, xgb_model_evaluation, xgb_model_evaluation_std, crf__model_evaluation, crf_model_evaluation_std], axis=1)
-model_evaluation.columns = ["en_score", "en_score_std", "xgb_score", "xgb_score_std", "crf_score", "crf_score_std"]
+model_evaluation.columns = ["ElasticNet_score", "ElasticNet_score_std", "XGBRegressor_score", "XGBRegressor_score_std", "cforest_score", "cforest_score_std"]
 
 model_evaluation.index = model_evaluation.index.str.replace("test_", "")
 model_evaluation.loc["MAE"] = model_evaluation.loc["MAE"].abs()
 model_evaluation.loc["RMSE"] = model_evaluation.loc["RMSE"].abs()
 
-outfile = f"../models_evaluation/commercial/performance_{target}.xlsx"
+outfile = f"../models_evaluation/degree_of_loss/performance_{target}.xlsx"
 model_evaluation.round(3).to_excel(outfile, index=True)
 print("Outer evaluation scores:\n", model_evaluation.round(3), f"\n.. saved to {outfile}")
-
 
 
 ## Feature Importances 
@@ -417,13 +438,12 @@ print("Outer evaluation scores:\n", model_evaluation.round(3), f"\n.. saved to {
 
 ## weight FI scores based on performance ; weigth importances from better performed models stronger
 model_weights =  {
-    "xgb_importances" : np.abs(models_scores["xgb"]["test_MAE"].mean()),
-    "en_importances" : np.abs(models_scores["en"]["test_MAE"].mean()),
-    "crf_importances" : np.abs(models_scores["crf"]["test_MAE"].mean()),
+    "XGBRegressor_importances" : np.abs(models_scores["XGBRegressor"]["test_MAE"].mean()),
+    "ElasticNet_importances" : np.abs(models_scores["ElasticNet"]["test_MAE"].mean()),
+    "cforest_importances" : np.mean(np.abs(models_scores["cforest"]["test_MAE"])),
 }
 
 df_feature_importances_w = fs.calc_weighted_sum_feature_importances(df_feature_importances, model_weights)
-df_feature_importances_w.head(5)
 
 
 ####  Plot Feature importances
@@ -437,10 +457,10 @@ df_feature_importances_plot = df_feature_importances_w
 #df_feature_importances_plot = df_feature_importances_plot.loc[df_feature_importances_plot.weighted_sum_importances > 2, : ] 
 
 f.plot_stacked_feature_importances(
-    df_feature_importances_plot[["crf_importances_weighted", "en_importances_weighted", "xgb_importances_weighted",]],
+    df_feature_importances_plot[["cforest_importances_weighted", "ElasticNet_importances_weighted", "XGBRegressor_importances_weighted",]],
     target_name=target,
-    model_names_plot = ("Conditional Random Forest", "Elastic Net", "XGBoost"),
-    outfile=f"../models_evaluation/commercial/feature_importances_{target}.jpg"
+    model_names_plot = ("Conditional Random Forest", "Elastic Net", "XGBRegressor"),
+    outfile=f"../models_evaluation/degree_of_loss/feature_importances_{target}.jpg"
 )
 
 
@@ -462,104 +482,5 @@ fs.save_selected_features(
     df_candidates, 
     pd.DataFrame(df_candidates, columns=[target]), 
     final_feature_names,
-    filename=f"../selected_features/commercial/final_predictors_{target}.xlsx"
+    filename=f"../selected_features/degree_of_loss/final_predictors_{target}.xlsx"
 )
-
-
-### Partial dependence
-## PDP shows the marginal effect that one or two features have on the predicted outcome.
-
-
-## store partial dependences for each model
-pdp_features = {a : {} for a in ["en", "xgb", "crf"]}
-
-
-## get partial dependences
-for model_name in ["xgb", "en", "crf"]:
-
-    Xy_pdp = eval_sets[model_name].dropna() #  solve bug on sklearn.partial_dependece() which can not deal with NAN values
-    X_pdp, y_pdp = Xy_pdp[Xy_pdp.columns.drop(target)], Xy_pdp[target]
-    X_pdp = pd.DataFrame(
-        MinMaxScaler().fit_transform(X_pdp), # for same scaled pd plots across models
-        columns=X.columns
-        )
-    Xy_pdp = pd.concat([y_pdp, X_pdp], axis=1)
-
-    for predictor_name in X.columns.to_list(): 
-        features_info =  {
-            #"percentiles" : (0.05, .95) # causes NAN for some variables for XGB if (0, 1)
-            "model" : final_models_trained[model_name], 
-            "Xy" : Xy_pdp, 
-            "y_name" : target, 
-            "feature_name" : predictor_name, 
-            "scale"  : True
-        }         
-        if model_name != "crf":   
-            partial_dep = me.get_partial_dependence(**features_info)
-        
-        else:  # process R models
-            print("crf: ", predictor_name)
-            partial_dep = me.decorator_func(       #  change function only temporally        
-                # model=final_models_trained[model_name], 
-                Xy=Xy_pdp, 
-                # y_name=target, 
-                # feature_name=predictor_name, 
-                # scale=True
-                **features_info
-            ) (me.get_partial_dependence)()
-
-        pdp_features[model_name][predictor_name] = partial_dep
-
-
-
-plt.figure(figsize=(10,25))
-# plt.suptitle(f"Partial Dependences for {target}", fontsize=18, y=0.95)
-
-
-most_important_features = df_feature_importances_plot.sort_values("weighted_sum_importances", ascending=False).index
-
-categorical = [] # ["flowvelocity", "further_variables .."]
-ncols = 3
-nrows = len(most_important_features[:10])
-idx = 0
-
-## create PDP for all three models
-for feature in most_important_features[:10]:
-    for model_name, color, idx_col in zip(["crf", "en", "xgb"], ["darkblue", "steelblue","grey"], [0, 1, 2]):
-        
-        # idx position of subplot
-        ax = plt.subplot(nrows, ncols, idx + 1 + idx_col)
-        feature_info = {"color" : color, "ax" : ax} 
-
-        # plot
-        df_pd_feature = pdp_features[model_name][feature]  
-        f.plot_partial_dependence(
-            df_pd_feature, feature_name=feature, partial_dependence_name="yhat", 
-            categorical=[],
-            outfile=f"../models_evaluation/commercial/pdp_{target}.jpg",
-            **feature_info
-            )
-        
-
-    idx = idx + 3
-
-
-
-# ### Empirical median ~ predicted median
-# Compare median and mean of predicted  vs observed target values
-for k,v in predicted_values.items():
-    print(f"\n{k}")
-    print(em.empirical_vs_predicted(predicted_values[k]["y_true"], predicted_values[k]["y_pred"]))
-
-
-# ### Plot prediction error 
-f.plot_residuals(
-    residuals=predicted_values, 
-    model_names_abbreviation=["crf", "en", "xgb"],  
-    model_names_plot=["Conditional Random Forest", "Elastic Net", "XGBoost"],
-    outfile=f"../models_evaluation/commercial/residuals_{target}.jpg"
-)
-
-
-print(f"Finished processing for target {target}")  # TODO add time measure at least for nested cv
-
