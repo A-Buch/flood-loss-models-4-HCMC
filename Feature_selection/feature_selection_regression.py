@@ -249,85 +249,19 @@ for pipe_name in pipelines:
         final_models_trained[model_name] = final_model 
         joblib.dump(final_model, f"../models_trained/degree_of_loss/final_models/{model_name}_{target}.joblib")
 
-
         ## Feature importance of best model
         importances = me.permutation_feature_importance(final_model, repeats=5)
 
-
         ## regression coefficients for linear models
         with contextlib.suppress(Exception): 
-            # models_coef[model_name] = me.calc_regression_coefficients(final_model)
-            # outfile = f"../models_evaluation/regression_coefficients_{model_name}_{target}.xlsx"
-            # models_coef[model_name].round(3).to_excel(outfile, index=True)
-            # print("Regression Coefficients:\n", models_coef[model_name].sort_values("probabilities", ascending=False), f"\n.. saved to {outfile}")
-
-            ## try to get coefficients of final predictor
-            # models_coef[model_name] = me.calc_regression_coefficients(final_model, sanity_test=True)
-            import statsmodels.api as sm
-            from scipy import stats
-            from sklearn.linear_model import LinearRegression
-
-            def calc_standard_error(y, y_pred, newX):  # TODO move them outside class or to utils.py
-                MSE = (sum((y - y_pred)**2))/(len(newX)-len(newX[0]))
-                ## MSE = (sum((y-y_pred)**2))/(len(newX)-len(X.columns))
-                var_b = MSE*(np.linalg.inv(np.dot(newX.T, newX)).diagonal())
-                return np.sqrt(var_b)
-            def calc_p_values(ts_b, newX):
-                p_values =  [2*(1-stats.t.cdf(np.abs(i),(len(newX)-len(newX[0])))) for i in ts_b]
-                return p_values
-
-            ## make sanity check
-            sanity_test = True
-            if sanity_test:
-                X_exog = MinMaxScaler().fit_transform(X)#, 
-                # y = self.y
-
-                ## reference: p-values from statsmodels
-                m = sm.OLS(y, sm.add_constant(X_exog))
-                m_res = m.fit()
-                #print(m_res.summary())
-                p_values_reference = m_res.summary2().tables[1]['P>|t|']
-
-                ## self calculated p-values
-                reg = LinearRegression().fit(X_exog, y)
-                y_pred_test = reg.predict(X_exog)
-                coefs_intercept = np.append(reg.intercept_, list(reg.coef_))
-
-                ## calc p-values
-                newX = np.append(np.ones((len(X_exog),1)), X_exog, axis=1)
-                sd_b = calc_standard_error(y, y_pred_test, newX)  # standard error calculated based on MSE of newX
-                ts_b = coefs_intercept / sd_b        # t values
-                p_values = calc_p_values(ts_b, newX)   # significance
-
-                assert (list(np.round(p_values_reference, 3)) == np.round(p_values, 3)).all(), sys.exit("different calculation of p values")
-
-            ## get coefficients and intercept
-            model_coefs = final_model.named_steps['model'].coef_
-            model_intercept = final_model.named_steps['model'].intercept_
-            coefs_intercept = np.append(model_intercept, list(model_coefs))
             
-            ## calc significance of coefficient,  modified based on : https://stackoverflow.com/questions/27928275/find-p-value-significance-in-scikit-learn-linearregression
-            ## calc p-values
-            ## FIXME errorneous calculation of p-values when moved inside the class
-            newX = np.append(np.ones((len(X),1)), X, axis=1)
-            sd_b = calc_standard_error(y, y_pred, newX)  # standard error calculated based on MSE of newX
-            ts_b = coefs_intercept / sd_b        # t values
-            p_values = calc_p_values(ts_b, newX)   # significance
+            models_coef[model_name] = me.calc_regression_coefficients(final_model)
 
-            model_coef = pd.DataFrame(
-                {
-                    "features": ["intercept"] + X.columns.to_list(),
-                    "coefficients": np.round(coefs_intercept, 4),
-                    "standard errors": np.round(sd_b, 3),
-                    "t values": np.round(ts_b, 3),
-                    "probabilities": np.round(p_values, 5),
-                }, index=range(len(coefs_intercept))
-            )
-            models_coef[model_name] = model_coef
-            # outfile = f"../models_evaluation/degree_of_loss/regression_coefficients_{model_name}_{target}_{year}_{aoi_and_floodtype}.xlsx"
-            # models_coef[model_name].round(3).to_excel(outfile, index=True)
-            print("Regression Coefficients:\n", models_coef[model_name].sort_values("probabilities", ascending=False))
-    
+            outfile = f"../models_evaluation/regression_coefficients_{model_name}_{target}.xlsx"
+            models_coef[model_name].round(3).to_excel(outfile, index=True)
+            print("Regression Coefficients:\n", models_coef[model_name].sort_values("probabilities", ascending=False), f"\n.. saved to {outfile}")
+
+
     else:
         ## normalize X 
         ## not mandatory for CRF but solves bug in party.cforest() and potentially decreases processing time
