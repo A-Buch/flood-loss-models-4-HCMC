@@ -219,50 +219,24 @@ class ModelEvaluation(object):
 
     
 
-    def calc_regression_coefficients(self, model, sanity_test=True):
+    def calc_regression_coefficients(self, model, y_pred_from_final_model):
         """
         Calculate regression coefficients and signficance from sklearn linear model
         final_model: fitted model from sklearn
+        y_pred_from_final_model : prediction from final model
         model_name (str): name of model
         return: pd.DataFrame with coefficents and their significance 
         """
-
-        ## make sanity check
-        if sanity_test:
-            X_exog = MinMaxScaler().fit_transform(self.X)#, 
-            y = self.y
-
-            ## reference: p-values from statsmodels
-            m = sm.OLS(y, sm.add_constant(X_exog))
-            m_res = m.fit()
-            #print(m_res.summary())
-            p_values_reference = m_res.summary2().tables[1]['P>|t|']
-
-            ## self calculated p-values
-            reg = LinearRegression().fit(X_exog, y)
-            y_pred_test = reg.predict(X_exog)
-            coefs_intercept = np.append(reg.intercept_, list(reg.coef_))
-
-            ## calc p-values
-            newX = np.append(np.ones((len(X_exog),1)), X_exog, axis=1)
-            sd_b = self.calc_standard_error(self.y, y_pred_test, newX)  # standard error calculated based on MSE of newX
-            ts_b = coefs_intercept / sd_b        # t values
-            p_values = self.calc_p_values(ts_b, newX)   # significance
-
-            assert (list(np.round(p_values_reference, 3)) == np.round(p_values, 3)).all(), sys.exit("different calculation of p values")
-
-
+        
         ## get coefficients and intercept
         model_coefs = model.named_steps['model'].coef_
         model_intercept = model.named_steps['model'].intercept_
         coefs_intercept = np.append(model_intercept, list(model_coefs))
+        print("coefs_intercept = np.append(model_intercept, list(model_coefs))", coefs_intercept )
         
-        ## calc significance of coefficient,  modified based on : https://stackoverflow.com/questions/27928275/find-p-value-significance-in-scikit-learn-linearregression
-        
-        ## calc p-values
-        ## FIXME errorneous calculation of p-values when moved inside the class
+        ## calc significance of coefficient (p-values),  modified based on : https://stackoverflow.com/questions/27928275/find-p-value-significance-in-scikit-learn-linearregression
         newX = np.append(np.ones((len(self.X),1)), self.X, axis=1)
-        sd_b = self.calc_standard_error(self.y, self.y_pred, newX)  # standard error calculated based on MSE of newX
+        sd_b = self.calc_standard_error(self.y, y_pred_from_final_model, newX)  # standard error calculated based on MSE of newX
         ts_b = coefs_intercept / sd_b        # t values
         p_values = self.calc_p_values(ts_b, newX)   # significance
 
