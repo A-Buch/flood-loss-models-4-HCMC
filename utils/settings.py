@@ -33,7 +33,8 @@ def init_logger(name, log_file=None):
     streamhandler = logging.StreamHandler()
     streamhandler.setLevel(logging.INFO)
     streamhandler.setFormatter(formatter)
-    logger.addHandler(streamhandler)
+    if not logger.handlers:
+        logger.addHandler(streamhandler)
     # Log file handler
     if log_file:
         assert os.path.exists(
@@ -42,5 +43,6 @@ def init_logger(name, log_file=None):
         filehandler = logging.FileHandler(filename=log_file)
         filehandler.setLevel(logging.INFO)
         filehandler.setFormatter(formatter)
-        logger.addHandler(filehandler)
+        if not logger.handlers:
+            logger.addHandler(filehandler)
     return logger
