@@ -9,6 +9,7 @@ __email__ = "a.buch@stud.uni-heidelberg.de"
 
 import os
 import logging
+import functools
 
 
 def init():
@@ -16,9 +17,38 @@ def init():
     seed = 42   # use same seed for across all methods
 
 
-def init_logger(name, log_file=None):
+## decorator for logger
+def decorate_init_logger(func):
     """
-    Set up a logger instance with stream and file logger. Modified version from Christina Ludwigs version for SM2T
+    Decorator for logger
+    """
+    @functools.wraps(func)  # preserve original func information
+    def wrapper(*args):
+       
+        # Call the wrapped function
+        logger = func(*args)
+
+        # Log file handler
+        log_file = "./tst_warning_coeff.log"
+        print(f"Creating empty log file {log_file} due to warning in that regression coefficients are wrongly calculated")
+        print("TODO add here further stuff about the warning .. ")
+        # os.path.exists(os.path.dirname(log_file))
+        if not os.path.exists(log_file):             
+            open(log_file, "w+").close()
+
+        # TODO find out how to add formatter and streamhandler from wrapped func to create logger input for log_file
+
+        return logger
+
+    return wrapper
+
+
+## decorated/wrapped func
+# @decorate_init_logger # uncoment when to make decorator permanent
+def init_logger(name):
+    """
+    Set up a logger instance
+    Modified version from <christina.ludwig@uni-heidelberg.de> for SM2T project
     name (str): Name of logger 
     log_file (str): path to log file
     """
@@ -33,16 +63,7 @@ def init_logger(name, log_file=None):
     streamhandler = logging.StreamHandler()
     streamhandler.setLevel(logging.INFO)
     streamhandler.setFormatter(formatter)
-    if not logger.handlers:
+    if not logger.handlers: 
         logger.addHandler(streamhandler)
-    # Log file handler
-    if log_file:
-        assert os.path.exists(
-            os.path.dirname(log_file)
-        ), "Error during logger setup: Directory of log file does not exist."
-        filehandler = logging.FileHandler(filename=log_file)
-        filehandler.setLevel(logging.INFO)
-        filehandler.setFormatter(formatter)
-        if not logger.handlers:
-            logger.addHandler(filehandler)
+    
     return logger
