@@ -14,8 +14,9 @@ from sklearn.metrics import confusion_matrix, PredictionErrorDisplay
 from scipy import stats
 
 
-import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+from matplotlib.cbook import boxplot_stats  
 import seaborn as sns
 
 import utils.evaluation_metrics as em
@@ -159,25 +160,25 @@ def plot_stacked_feature_importances(df_feature_importances, target_name, model_
     Stack feature importances of multiple models into one barchart
     df_feature_importances : pd.DatFrame with columns which contain feature importances to plot
     """
-    model_name_1, model_name_2 , model_name_3 = model_names_plot
+    model_name_1, model_name_2 , model_name_3 = model_names_plot # TODO update with s.color_palette_models from settings
 
     ## TODO remove hardcode - function is currently limited to three models
     feature_importance_1, feature_importance_2, feature_importance_3 = df_feature_importances.columns.to_list()
-    color = {feature_importance_1:"darkblue", feature_importance_2:"steelblue", feature_importance_3:"grey"}
 
     ## plot
     plt.figure(figsize=(30, 22))
     fig = df_feature_importances.plot.barh(
         stacked=True, 
-        color=color,
-        width=0.5,
+        color={feature_importance_1:"darkblue", feature_importance_2:"steelblue", feature_importance_3:"grey"},
+        # color=s.color_palette_models,
+        width=.5, alpha=.7,
     )
     plt.xlabel("Importance")
     plt.ylabel("")
     plt.title(f"Feature Importances for {target_name.replace('_',' ')}")
 
     ## legend
-    top_bar = mpatches.Patch(color="darkblue", label=model_name_1)
+    top_bar = mpatches.Patch(color="darkblue", label=model_name_1)  #TODO update with s.color_palette_models from settings
     middle_bar = mpatches.Patch(color="steelblue", label=model_name_2)
     bottom_bar = mpatches.Patch(color="grey", label=model_name_3)
     plt.tick_params(axis='x', which='major', labelsize=12)
@@ -266,7 +267,7 @@ def plot_residuals(residuals, model_names_abbreviation,  model_names_plot, outfi
             y_pred,
             kind="actual_vs_predicted",
             ax=ax0[idx],
-            scatter_kwargs={"alpha": 0.5},
+            scatter_kwargs={"alpha":.5},
         )
         ax0[idx].set_title(f"{full_name} regression ")
 
@@ -282,7 +283,7 @@ def plot_residuals(residuals, model_names_abbreviation,  model_names_plot, outfi
             y_pred,
             kind="residual_vs_predicted",
             ax=ax1[idx],
-            scatter_kwargs={"alpha": 0.5},
+            scatter_kwargs={"alpha":.5},
         )
         ax1[idx].set_title(f"{full_name} regression ")
 
@@ -299,7 +300,7 @@ def boxplot_outer_scores_ncv(models_scores, outfile):
     models_scores (dict): nested dictionary with outer model scores
     outfiel (str): outfile and path
     """
-    
+
     ## collect performance scores from outer folds of nested cross validation
     df_outer_scores_of_all_models = pd.DataFrame()
     for model_name in list(models_scores.keys()):
@@ -310,7 +311,7 @@ def boxplot_outer_scores_ncv(models_scores, outfile):
     ## settings for plot
     names = df_outer_scores_of_all_models.columns.drop('modelname')
     ncols = len(names)
-    fig, axes = plt.subplots(1, ncols, figsize=(30, 10), layout="constrained")
+    fig, axes = plt.subplots(1, ncols, figsize=(25, 10), layout="constrained")
 
     # plot
     for name, ax in zip(names, axes.flatten()):
@@ -318,23 +319,42 @@ def boxplot_outer_scores_ncv(models_scores, outfile):
             ax.set_title(name.split("_")[1], fontsize=25)
         except:
             ax.set_title(name, fontsize=25)
-        sns.boxplot(
-            y=name, x="modelname", 
-            data=df_outer_scores_of_all_models, 
-            orient='v', ax=ax, 
-            palette={
-                s.shortnames_modelnames_colors["Conditional Random Forest"],
-                s.shortnames_modelnames_colors["Elastic Net"],
-                s.shortnames_modelnames_colors["XGBoost"],
-            }, width=[0.4], ).set(xlabel=None, ylabel=None)
+        
+        ## for all metrices except R2
+        if name != "test_R2":
+            sns.boxplot(
+                y=name, x="modelname", 
+                data=df_outer_scores_of_all_models, 
+                orient='v', ax=ax, 
+                #palette=s.color_palette_models,
+                palette = {
+                    "cforest":  "darkblue", 
+                    "ElasticNet": "steelblue", 
+                    "XGBRegressor":  "grey", 
+                }, width=[0.4], boxprops=dict(alpha=.7),
+            ).set(xlabel=None, ylabel=None)
+        ## only for R2 due that it has ofte outliers which leads to a large value-range on y-axis with small boxplots
+        else: 
+            sns.boxplot(
+                y=name, x="modelname", 
+                data=df_outer_scores_of_all_models, 
+                orient='v', ax=ax, 
+                palette = {
+                    "cforest":  "darkblue", 
+                    "ElasticNet": "steelblue", 
+                    "XGBRegressor":  "grey"}, 
+                # palette= s.color_palette_models, 
+                width=[0.4], showfliers=False, boxprops=dict(alpha=.7),
+            ).set(xlabel=None, ylabel=None)
+
+            ## report not visualized Rs scores aka outliers
+            boxplot_stats(df_outer_scores_of_all_models["test_R2"]).pop(0)['fliers']  ## outleirs from R2
+            print(f"removed {len(np.array([0.4501175, 4501175]))} outliers to improve visualization of R2 value-range")
+
         ax.set_xlabel(None, fontsize=35)
         ax.set_xticklabels(ax.get_xticklabels(), rotation=90, fontsize=25)
         ax.get_shared_y_axes().join(axes[0], *axes[:-1]),  # share y axis except for SMAPE
         ax.axhline(y=0, color='black', linewidth=.8, alpha=.5, ls='--')  # add zero-line
-
-    # center y ais of SMAPE
-    yabs_max = abs(max(axes[3].get_ylim(), key=abs))
-    axes[3].set_ylim(ymin=-yabs_max, ymax=yabs_max)
 
     # fig.tight_layout()
     plt.tight_layout()
