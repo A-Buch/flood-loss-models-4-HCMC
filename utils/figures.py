@@ -298,9 +298,8 @@ def boxplot_outer_scores_ncv(models_scores, outfile):
     """
     Boxplot grouped by evalatuation metrics (eg MAE, RMSE..)
     models_scores (dict): nested dictionary with outer model scores
-    outfiel (str): outfile and path
+    outfile (str): outfile and path
     """
-
     ## collect performance scores from outer folds of nested cross validation
     df_outer_scores_of_all_models = pd.DataFrame()
     for model_name in list(models_scores.keys()):
@@ -322,28 +321,23 @@ def boxplot_outer_scores_ncv(models_scores, outfile):
         
         ## for all metrices except R2
         if name != "test_R2":
+            sns.set_style("whitegrid")
             sns.boxplot(
                 y=name, x="modelname", 
                 data=df_outer_scores_of_all_models, 
                 orient='v', ax=ax, 
-                #palette=s.color_palette_models,
-                palette = {
-                    "cforest":  "darkblue", 
-                    "ElasticNet": "steelblue", 
-                    "XGBRegressor":  "grey", 
-                }, width=[0.4], boxprops=dict(alpha=.7),
+                palette=s.color_palette_models,
+                width=[0.4], boxprops=dict(alpha=.7),
             ).set(xlabel=None, ylabel=None)
+        
         ## only for R2 due that it has ofte outliers which leads to a large value-range on y-axis with small boxplots
         else: 
+            sns.set_style("whitegrid")
             sns.boxplot(
                 y=name, x="modelname", 
                 data=df_outer_scores_of_all_models, 
                 orient='v', ax=ax, 
-                palette = {
-                    "cforest":  "darkblue", 
-                    "ElasticNet": "steelblue", 
-                    "XGBRegressor":  "grey"}, 
-                # palette= s.color_palette_models, 
+                palette=s.color_palette_models, 
                 width=[0.4], showfliers=False, boxprops=dict(alpha=.7),
             ).set(xlabel=None, ylabel=None)
 
@@ -356,10 +350,10 @@ def boxplot_outer_scores_ncv(models_scores, outfile):
         ax.get_shared_y_axes().join(axes[0], *axes[:-1]),  # share y axis except for SMAPE
         ax.axhline(y=0, color='black', linewidth=.8, alpha=.5, ls='--')  # add zero-line
 
-    # fig.tight_layout()
-    plt.tight_layout()
-    plt.savefig(outfile, dpi=300, bbox_inches="tight")  #format='jpg'
-    
+        # fig.tight_layout()
+        plt.tight_layout()
+        plt.savefig(outfile, dpi=300, bbox_inches="tight")  #format='jpg'
+        
 
 
     # ## Plot scatter plot of residuals by variable
