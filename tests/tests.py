@@ -13,12 +13,12 @@ from scipy import stats
 
 sys.path.insert(0, "../")
 from utils.evaluation import ModelEvaluation
+import utils.settings as s
 
 
 
 # Get logger
-logger = logging.getLogger('__calc_p_values__')
-logger.setLevel(logging.INFO)
+logger = s.init_logger('__test_calc_regression_coefficients__')
 
 
 class TestModelEvaluation(unittest.TestCase):
@@ -39,6 +39,31 @@ class TestModelEvaluation(unittest.TestCase):
         self.newX = np.append(np.ones((len(self.X_exog),1)), self.X_exog, axis=1)
         self.y = Xy["target"]
         self.y_pred = pd.Series([1, 1, 2, 3, 6, 7, 8])
+
+    
+    def test_negate_scores_from_sklearn_cross_valdiate(self):
+        """
+        test if negatiation works correctly for model scores from outer folds of ncv
+        """
+         # expected output
+        reference = {
+            'test_MAE': [-0.13224787565117258, 0.000000, +0.1255666668136231],
+            'test_R2': [0.01312909501742765, 0.4501174953142224, 0.1746695111706701], 
+        }
+
+        ## test negatiation, except for R2 due that it is maximized in sklearn.cross-valdiate()
+        self.assertEqual(self.me_1.negate_scores_from_sklearn_cross_valdiate(
+            {'test_MAE': [0.13224787565117258, 0.000000, -0.1255666668136231],
+             'test_R2': [0.01312909501742765, 0.4501174953142224, 0.1746695111706701], 
+             }
+        ), reference)
+
+        ## test handling 1D-np.array or list as input values
+        self.assertEqual(self.me_1.negate_scores_from_sklearn_cross_valdiate(
+            {'test_MAE': np.array([0.13224787565117258, 0.000000, -0.1255666668136231]),
+             'test_R2': [0.01312909501742765, 0.4501174953142224, 0.1746695111706701]
+             }
+        ), reference)
 
 
     def test_calc_p_values(self):
@@ -61,36 +86,44 @@ class TestModelEvaluation(unittest.TestCase):
         self.assertEqual(sd_1.tolist(), [1.6872424731962818, 7.899599466161708, 6.91506481334833])
 
 
-    # def test_calc_regression_coefficients():
-        # """
-        ## TODO verify final result from calc_regression_coefficients() with statsmodels-package in a linear regression
-        # """
-        # X_exog = MinMaxScaler().fit_transform(self.X)#, 
-        # # y = self.y
+#     def test_calc_regression_coefficients():
+#         """
+#         # TODO verify final result from calc_regression_coefficients() with statsmodels-package with a linear regression
+#         """
+#         X_exog = MinMaxScaler().fit_transform(self.X)#, 
+#         y = self.y
 
-        # ## reference: p-values from statsmodels
-        # m = sm.OLS(self.y, sm.add_constant(X_exog))
-        # m_res = m.fit()
-        # #print(m_res.summary())
-        # p_values_reference = m_res.summary2().tables[1]['P>|t|']
+#         ## reference: p-values from statsmodels
+#         m = sm.OLS(self.y, sm.add_constant(X_exog))
+#         m_res = m.fit()
+#         #print(m_res.summary())
+#         p_values_reference = m_res.summary2().tables[1]['P>|t|']
+        
+#         # OR with ElasticNEt
+#         # from sklearn.linear_model import ElasticNet
+#         # from sklearn2pmml.statsmodels import StatsModelsRegressor
+#         # from statsmodels.api import OLS
+#         # m = StatsModelsRegressor(OLS, fit_intercept = True)
+#         # m.fit(X_exog, y, fit_method="fit_regularized", method="elastic_net")
+        
+#         ## self calculated p-values
+#         # reg = ElasticNet().fit(X_exog, self.y)
+#         reg = LinearRegression().fit(X_exog, self.y)
+#         y_pred_test = reg.predict(X_exog)
+#         coefs_intercept = np.append(reg.intercept_, list(reg.coef_))
 
-        # ## self calculated p-values
-        # reg = LinearRegression().fit(X_exog, self.y)
-        # y_pred_test = reg.predict(X_exog)
-        # coefs_intercept = np.append(reg.intercept_, list(reg.coef_))
+#         ## calc p-values
+#         newX = np.append(np.ones((len(X_exog),1)), X_exog, axis=1)
+#         sd_b = self.calc_standard_error(self.y, y_pred_test, newX)  # standard error calculated based on MSE of newX
+#         ts_b = coefs_intercept / sd_b        # t values
+#         p_v = self.calc_p_values(ts_b, newX)   # significance
+#         # print(np.round(p_values_reference, 3), np.round(p_v, 3))
 
-        # ## calc p-values
-        # newX = np.append(np.ones((len(X_exog),1)), X_exog, axis=1)
-        # sd_b = self.calc_standard_error(self.y, y_pred_test, newX)  # standard error calculated based on MSE of newX
-        # ts_b = coefs_intercept / sd_b        # t values
-        # p_v = self.calc_p_values(ts_b, newX)   # significance
-        # # print(np.round(p_values_reference, 3), np.round(p_v, 3))
-
-        # assert (list(np.round(p_values_reference, 3)) == np.round(p_v, 3)).all(), sys.exit("different calculation of p values")
-        # print("Passed test for p-value calculation:", (list(np.round(p_values_reference, 3)) == np.round(p_v, 3)).all() )
+#         assert (list(np.round(p_values_reference, 3)) == np.round(p_v, 3)).all(), logger.critical("wrong calculation of p values!") & sys.exit("stop calculation")
+#         print("Passed test for p-value calculation:", (list(np.round(p_values_reference, 3)) == np.round(p_v, 3)).all() )
 
 
-# unittest.main(argv=[''], verbosity=2, exit=False)  # when run in cell of jupyter nb
+# # unittest.main(argv=[''], verbosity=2, exit=False)  # when run in cell of jupyter nb
 
-if __name__ == '__main__':
-    unittest.main() 
+# if __name__ == '__main__':
+#     unittest.main() 
