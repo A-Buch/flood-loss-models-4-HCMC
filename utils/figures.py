@@ -10,15 +10,16 @@ import numpy as np
 import pandas as pd
 import contextlib
 
-from scipy.stats import spearmanr
 from sklearn.metrics import confusion_matrix, PredictionErrorDisplay
+from scipy import stats
+
 
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-import utils.evaluation as e
 import utils.evaluation_metrics as em
+import utils.settings as s
 
 
 
@@ -34,7 +35,11 @@ def plot_spearman_rank(df_corr, min_periods=100, signif=True, psig=0.05):
         """ 
  
         ## get the p value for pearson coefficient, subtract 1 on the diagonal
-        pvals = df_corr.corr(method=lambda x, y: spearmanr(x, y)[1], min_periods=min_periods) - np.eye(*df_corr.corr(method="spearman", min_periods=min_periods).shape)  # np.eye(): diagonal= ones, elsewere=zeros
+        pvals = df_corr.corr(
+            method=lambda x, y: stats.spearmanr(x, y)[1], min_periods=min_periods
+            ) - np.eye(
+                *df_corr.corr(method="spearman", min_periods=min_periods).shape
+                )  # np.eye(): diagonal= ones, elsewere=zeros
 
         #  main plot
         sns.heatmap(
@@ -57,6 +62,68 @@ def plot_spearman_rank(df_corr, min_periods=100, signif=True, psig=0.05):
         texts = [f"not significant (at {psig})"]
         patches = [ mpatches.Patch(color=colors[i], label="{:s}".format(texts[i]) ) for i in range(len(texts)) ]
         plt.legend(handles=patches, bbox_to_anchor=(.85, 1.05), loc='center')
+
+
+def corrdot(*args, **kwargs):
+    corr_r = args[0].corr(args[1], method="spearman", min_periods=100)
+    #corr_r = args[0].corr(args[1], 'pearson')
+    corr_text = round(corr_r, 2)
+    ax = plt.gca()
+    font_size = abs(corr_r) * 80 + 5
+    ax.annotate(corr_text, [.5, .5,],  xycoords="axes fraction",
+                ha='center', va='center', fontsize=font_size)
+
+def corrfunc(x, y, **kws):
+    r, p = stats.spearmanr(x, y)
+    p_stars = ''
+    if p <= 0.05:
+        p_stars = '*'
+    if p <= 0.01:
+        p_stars = '**'
+    if p <= 0.001:
+        p_stars = '***'
+    ax = plt.gca()
+    ax.annotate(p_stars, xy=(0.65, 0.6), xycoords=ax.transAxes,
+                color='red', fontsize=70)
+
+
+def plot_correlations(df, impute_na=True):
+    """
+    Correlations visualized by Scatterplots, significance and freuqnecy plots between all variables
+    df : pd.DataFrame
+    impute_na (bool): impute missing values to see better outliers, as it would be with removing the entire record 
+    """
+    if impute_na:
+        print("imputing columns with median")
+        df = df.apply(lambda x: x.fillna(x.median()),axis=0)
+    else:
+        df = df.dropna()
+        print(f"removing {len(df[df.isna()])} records with missing data")
+
+
+    sns.set(style='white', font_scale=1.6)
+
+    g = sns.PairGrid(df, aspect=1.5, diag_sharey=False, despine=False)
+    g.map_lower(sns.regplot, lowess=True, ci=False,
+                line_kws={'color': 'red', 'lw': 1},
+                scatter_kws={'color': 'black', 's': 20})
+    g.map_diag(sns.distplot, color='black',
+            kde_kws={'color': 'red', 'cut': 0.7, 'lw': 1},
+            hist_kws={'histtype': 'bar', 'lw': 2, #'bins': 'auto', # 10
+                        'edgecolor': 'k', 'facecolor':'grey'})
+    g.map_diag(sns.rugplot, color='black')
+    g.map_upper(corrdot)
+    g.map_upper(corrfunc)
+    g.fig.subplots_adjust(wspace=0, hspace=0)
+
+    # Remove axis labels
+    for ax in g.axes.flatten():
+        ax.set_ylabel('')
+        ax.set_xlabel('')
+
+    # Add titles to the diagonal axes/subplots
+    for ax, col in zip(np.diag(g.axes), df.columns):
+        ax.set_title(col, y=0.82, fontsize=26)
 
 
 
@@ -82,7 +149,7 @@ def plot_confusion_matrix(y_true, y_pred, outfile):
         cbar=True,
     )
     with contextlib.suppress(Exception):
-        plt.savefig(outfile)
+        plt.savefig(outfile, dpi=300, bbox_inches="tight")
     return cm
 
 
@@ -118,7 +185,7 @@ def plot_stacked_feature_importances(df_feature_importances, target_name, model_
     plt.legend(handles=[top_bar, middle_bar, bottom_bar], loc="lower right")
     plt.tight_layout()
     
-    fig.get_figure().savefig(outfile, bbox_inches="tight")
+    fig.get_figure().savefig(outfile, dpi=300, bbox_inches="tight")
     plt.close()
 
     
@@ -173,7 +240,7 @@ def plot_partial_dependence(df_pd_feature, feature_name:str, partial_dependence_
         right='on',
     )
     plt.tight_layout()
-    plt.savefig(outfile, bbox_inches="tight")
+    plt.savefig(outfile, dpi=300, bbox_inches="tight")
     
    
 def plot_residuals(residuals, model_names_abbreviation,  model_names_plot, outfile):
@@ -219,11 +286,61 @@ def plot_residuals(residuals, model_names_abbreviation,  model_names_plot, outfi
         )
         ax1[idx].set_title(f"{full_name} regression ")
 
-        f.get_figure().savefig(outfile, bbox_inches="tight")
+        f.get_figure().savefig(outfile, dpi=300, bbox_inches="tight")
 
         plt.subplots_adjust(top=0.2)
         plt.tight_layout()
         plt.close()
+
+
+def boxplot_outer_scores_ncv(models_scores, outfile):
+    """
+    Boxplot grouped by evalatuation metrics (eg MAE, RMSE..)
+    models_scores (dict): nested dictionary with outer model scores
+    outfiel (str): outfile and path
+    """
+    
+    ## collect performance scores from outer folds of nested cross validation
+    df_outer_scores_of_all_models = pd.DataFrame()
+    for model_name in list(models_scores.keys()):
+        outer_scores = pd.DataFrame(models_scores[model_name].copy())
+        outer_scores["modelname"] = model_name
+        df_outer_scores_of_all_models = pd.concat([df_outer_scores_of_all_models, outer_scores], axis=0)
+
+    ## settings for plot
+    names = df_outer_scores_of_all_models.columns.drop('modelname')
+    ncols = len(names)
+    fig, axes = plt.subplots(1, ncols, figsize=(30, 10), layout="constrained")
+
+    # plot
+    for name, ax in zip(names, axes.flatten()):
+        try:
+            ax.set_title(name.split("_")[1], fontsize=25)
+        except:
+            ax.set_title(name, fontsize=25)
+        sns.boxplot(
+            y=name, x="modelname", 
+            data=df_outer_scores_of_all_models, 
+            orient='v', ax=ax, 
+            palette={
+                s.shortnames_modelnames_colors["Conditional Random Forest"],
+                s.shortnames_modelnames_colors["Elastic Net"],
+                s.shortnames_modelnames_colors["XGBoost"],
+            }, width=[0.4], ).set(xlabel=None, ylabel=None)
+        ax.set_xlabel(None, fontsize=35)
+        ax.set_xticklabels(ax.get_xticklabels(), rotation=90, fontsize=25)
+        ax.get_shared_y_axes().join(axes[0], *axes[:-1]),  # share y axis except for SMAPE
+        ax.axhline(y=0, color='black', linewidth=.8, alpha=.5, ls='--')  # add zero-line
+
+    # center y ais of SMAPE
+    yabs_max = abs(max(axes[3].get_ylim(), key=abs))
+    axes[3].set_ylim(ymin=-yabs_max, ymax=yabs_max)
+
+    # fig.tight_layout()
+    plt.tight_layout()
+    plt.savefig(outfile, dpi=300, bbox_inches="tight")  #format='jpg'
+    
+
 
     # ## Plot scatter plot of residuals by variable
     # ## logger.info("Generating scatter plot of residuals ...")
