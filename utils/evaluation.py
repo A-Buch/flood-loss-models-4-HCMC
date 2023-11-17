@@ -5,7 +5,6 @@
 __author__ = "Anna Buch, Heidelberg University"
 __email__ = "a.buch@stud.uni-heidelberg.de"
 
-import sys
 import numpy as np
 import pandas as pd
 import functools
@@ -14,9 +13,7 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_absolute_error, r2_score
 from sklearn.inspection import permutation_importance, partial_dependence
 from sklearn.model_selection import cross_validate, cross_val_predict
-from sklearn.linear_model import LinearRegression
 
-import statsmodels.api as sm
 from scipy import stats
 
 import utils.feature_selection as fs
@@ -70,7 +67,7 @@ class ModelEvaluation(object):
         # }
 
 
-    def model_evaluate_ncv(self, prediction_method="predict"):
+    def model_evaluate_ncv(self, sample_weights=None, prediction_method="predict"):
         """  
         Run and Evaluate sklearn model by nested cross-validation [outer folds]
         prediction_method (str): "predict" or "predict_proba"
@@ -81,7 +78,8 @@ class ModelEvaluation(object):
             self.models_trained_ncv,  # estimators from inner cv
             self.X, self.y,
             cv=self.k_folds, # KFold without repeats to have for each sample one predicted value 
-            method=prediction_method
+            method=prediction_method,
+            fit_params=sample_weights
         )
 
         ## Probability predictions (self.y_pred is 2-dimensional: predicted probabilities and respective predictions)
@@ -100,6 +98,7 @@ class ModelEvaluation(object):
 
 
         ## get generalization performance on outer folds of nested cv
+        ## NOTE: cross_validate() gives always negitve verios of score if it should be minimized eg. MAE, and gives positive versions if score should be maiximzed eg. ACC
         model_performance_ncv = cross_validate(
             self.models_trained_ncv, 
             self.X, self.y, 
@@ -107,20 +106,35 @@ class ModelEvaluation(object):
             cv=self.outer_cv, 
             return_estimator=True,
         )         
-        try:
-            print(
-                "model performance measured in MAE (std) on outer CV: %.3f (%.3f)"%(
-                    model_performance_ncv["test_MAE"].mean(), np.std(model_performance_ncv["test_MAE"])
-                ))
-        except KeyError:
-            print(
-                "model performance measured in Accuracy (std) on outer CV: %.3f (%.3f)"%(
-                    model_performance_ncv["test_accuracy"].mean(), np.std(model_performance_ncv["test_accuracy"])
-                ))
+        # try:
+        #     print(
+        #         "model performance measured in MAE (std) on outer CV: %.3f (%.3f)"%(
+        #             model_performance_ncv["test_MAE"].mean(), np.std(model_performance_ncv["test_MAE"])
+        #         ))
+        # except KeyError:
+        #     print(
+        #         "model performance measured in Accuracy (std) on outer CV: %.3f (%.3f)"%(
+        #             model_performance_ncv["test_accuracy"].mean(), np.std(model_performance_ncv["test_accuracy"])
+        #         ))
+        
         self.calc_residuals()    
 
         return model_performance_ncv
     
+    
+    def negate_scores_from_sklearn_cross_valdiate(self, model_scores):
+        """
+        reverse negative versions of metrics scores from sklearn.cross_validate(), only needed for metrics which are minimized such as MAE, RMSE, MBE ..
+        NOTE: this function is not needed for Rmodels evaluation or R2 due that they are maximized
+        model_scores (dict): key: name of metrics, value:  np.array of performance sores from each estimator evaluated from nested cv
+        returns dict with metric names as keys and list of negated values
+        """
+        ## remove R2 from metrics due that it's maximized and therefroe as positive version returned from sklearn.cross_validate()
+        return {
+            key: [ -1 * item for item in value] if key not in ("test_R2")   # for MAE, RMSE etc: -+ --> - , -- --> +
+            else [ 1 * item for item in value]                              # for R2 dont do anything
+                    for key, value in model_scores.items() 
+        }
 
     def r_models_cv_predictions(self, idx=0):
         """
@@ -331,12 +345,6 @@ class ModelEvaluation(object):
                 X = Xy_pdp.drop(y_name, axis=1)
                 y = Xy_pdp[y_name]
 
-                # scaled feature distributions in pd plots across models
-                # if scale:
-                #     X = pd.DataFrame(
-                #         MinMaxScaler().fit_transform(X),
-                #         columns=X.columns
-                #     )
                 robjects.r('''
                     r_partial_dependence <- function(model, df, predictor_name, verbose=FALSE) {
                         pdp::partial(model, train=df, pred.var=predictor_name, type="regression", plot=FALSE )  
@@ -344,11 +352,11 @@ class ModelEvaluation(object):
                 ''') #  , plot=FALSE --> to get pdp values
                 r_partial_dependence = robjects.globalenv['r_partial_dependence']
                 partial_dep = r_partial_dependence(model, pd.concat([y, X], axis=1), feature_name)               
-                # partial_dep = r_partial_dependence(model, Xy, feature_name)
                 
                 return fs.r_dataframe_to_pandas(partial_dep)
             
             return wrapper
+        
         return r_get_partial_dependence
     
 
