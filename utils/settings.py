@@ -13,16 +13,29 @@ import functools
 
 
 def init():
+
     global seed
     seed = 42   # use same seed for across all methods
 
+    global color_palette_models  # color palettes for models 
+    color_palette_models = {
+        "cforest":  "darkblue", 
+        "ElasticNet": "steelblue", 
+        "XGBRegressor":  "grey", 
+    }
+    # global shortnames_modelnames_colors        # define modelnames and their abbreviations and colors for plotting
+    # shortnames_modelnames_colors={
+    #     "Conditional Random Forest": {"cforest": "darkblue"}, 
+    #     "Elastic Net": {"ElasticNet":"steelblue"}, 
+    #     "XGBoost": {"XGBRegressor": "grey"}, 
+    # }
 
 ## decorator for logger
 def decorate_init_logger(func):
     """
     Decorator for logger
     """
-    @functools.wraps(func)  # preserve original func information
+    @functools.wraps(func)  # preserve original func information from magic methods such as __repr__
     def wrapper(*args):
        
         # Call the wrapped function
@@ -30,8 +43,7 @@ def decorate_init_logger(func):
 
         # Log file handler
         log_file = "./tst_warning_coeff.log"
-        print(f"Creating empty log file {log_file} due to warning in that regression coefficients are wrongly calculated")
-        print("TODO add here further stuff about the warning .. ")
+        print(f"Creating log file {log_file} due to warning that regression coefficients are wrongly calculated")
         # os.path.exists(os.path.dirname(log_file))
         if not os.path.exists(log_file):             
             open(log_file, "w+").close()

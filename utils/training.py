@@ -12,12 +12,15 @@ from sklearn.model_selection import RandomizedSearchCV
 import utils.feature_selection as fs
 #from utils.evaluation import ModelEvaluation
 import utils.settings as s
-s.init()
-seed = s.seed
 
 import rpy2.robjects as robjects
 from rpy2.robjects.packages import importr
 from rpy2.robjects import Formula
+
+s.init()
+seed = s.seed
+logger = s.init_logger("__model_training__")
+
 
 base = importr('base')
 pdp = importr("pdp")
@@ -113,7 +116,7 @@ class ModelFitting(object):
                 savePredictions = "final"
             )
         )
-        print("\nSummary CRF \n", base.summary(models_trained_ncv))
+        logger.info(f"\nSummary CRF \n {base.summary(models_trained_ncv)}")
         
         return models_trained_ncv
             

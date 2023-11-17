@@ -19,6 +19,7 @@ from scipy import stats
 import utils.feature_selection as fs
 import utils.training as t
 import utils.evaluation_metrics as em
+import utils.settings as s
 
 import rpy2.robjects as robjects
 from rpy2.robjects import pandas2ri
@@ -36,6 +37,8 @@ caret = importr('caret') # package version needs to be higher than  >=  6.0-90
 pandas2ri.activate()
 
 mt = t.ModelFitting  # call Class for model training
+
+logger = s.init_logger("__model_evaluation__")
 
 
 class ModelEvaluation(object):

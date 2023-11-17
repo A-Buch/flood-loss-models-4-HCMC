@@ -14,6 +14,10 @@ import json
 from dataclasses import dataclass
 import difflib
 
+import utils.settings as s
+logger = s.init_logger("__preprocessing__")
+
+
 
 def load_config(config_file:str):
     """
@@ -27,6 +31,7 @@ def load_config(config_file:str):
     with open(config_file, "r") as src:
         config = json.load(src)
     return config
+
 
 def drop_object_columns(df):
     """
@@ -63,10 +68,20 @@ def check_types(x):
         return float(x)
 
 
-@dataclass()
+def percentage_of_nan(df):
+    """
+    Print number of missing data per variable
+    df : pd.DataFrame to derive amount of missing data per variable
+    """
+    return logger.info(
+        f"Percentage of missing values per feature [%]\n {round(df.isna().mean().sort_values(ascending=False)[:15]  * 100)}"
+    )
+
+
+@dataclass(frozen=False)  # make annoutations such as "cutoff" mutable
 class FuzzyMerge:
     """
-        Works like pandas merge except also merges on approximate matches.
+        Works like pandas merge except also merges on approximate matches. dataclass is a class mainly to store data
         modified from: https://stackoverflow.com/questions/74778263/python-merge-two-dataframe-based-on-text-similarity-of-their-columns
     """
     left: pd.DataFrame
@@ -84,7 +99,6 @@ class FuzzyMerge:
             self.get_closest_match(x, self.left[self.left_on]) 
             for x in df[self.right_on]
         ]
-
         return self.left.merge(df, on=self.left_on, how=self.how) # noqa: E501
 
     def get_closest_match(self, left: pd.Series, right: pd.Series, cutoff=0.9) -> str or None:  # noqa: E501

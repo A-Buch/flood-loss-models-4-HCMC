@@ -11,6 +11,11 @@ import pandas as pd
 from sklearn.metrics import mean_absolute_error, r2_score
 from scipy import stats
 
+import utils.settings as s
+
+logger = s.init_logger("__evaluation_metrics__")
+
+
 
 def mean_bias_error(y_true, y_pred):
     """" Calculate MBE from predicted and actual target  """
@@ -66,7 +71,7 @@ def evaluation_report(y_true, y_pred):
     mbe = mean_bias_error(y_true, y_pred)
     r2c = r2_score(y_true, y_pred)
 
-    print(
+    logger.info(
     f"""Model Performance:
         Root Mean Square Error: {round(rmse,2)}
         Symmetric Mean Abs. Percentage Error: {round(smape,2)}

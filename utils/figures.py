@@ -22,6 +22,8 @@ import seaborn as sns
 import utils.evaluation_metrics as em
 import utils.settings as s
 
+logger = s.init_logger("__figures__")
+
 
 
 def plot_spearman_rank(df_corr, min_periods=100, signif=True, psig=0.05):
@@ -95,11 +97,11 @@ def plot_correlations(df, impute_na=True):
     impute_na (bool): impute missing values to see better outliers, as it would be with removing the entire record 
     """
     if impute_na:
-        print("imputing columns with median")
+        logger.info("imputing columns with median")
         df = df.apply(lambda x: x.fillna(x.median()),axis=0)
     else:
         df = df.dropna()
-        print(f"removing {len(df[df.isna()])} records with missing data")
+        logger.info(f"removing {len(df[df.isna()])} records with missing data")
 
 
     sns.set(style='white', font_scale=1.6)
@@ -343,7 +345,7 @@ def boxplot_outer_scores_ncv(models_scores, outfile):
 
             ## report not visualized Rs scores aka outliers
             boxplot_stats(df_outer_scores_of_all_models["test_R2"]).pop(0)['fliers']  ## outleirs from R2
-            print(f"removed {len(np.array([0.4501175, 4501175]))} outliers to improve visualization of R2 value-range")
+            logger.info(f"removed {len(np.array([0.4501175, 4501175]))} outliers to improve visualization of R2 value-range")
 
         ax.set_xlabel(None, fontsize=35)
         ax.set_xticklabels(ax.get_xticklabels(), rotation=90, fontsize=25)
