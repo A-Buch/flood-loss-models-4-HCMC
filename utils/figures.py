@@ -90,7 +90,7 @@ def corrfunc(x, y, **kws):
                 color='red', fontsize=70)
 
 
-def plot_correlations(df, impute_na=True):
+def plot_correlations(df, outfile=None, impute_na=True):
     """
     Correlations visualized by Scatterplots, significance and freuqnecy plots between all variables
     df : pd.DataFrame
@@ -103,9 +103,7 @@ def plot_correlations(df, impute_na=True):
         df = df.dropna()
         logger.info(f"removing {len(df[df.isna()])} records with missing data")
 
-
     sns.set(style='white', font_scale=1.6)
-
     g = sns.PairGrid(df, aspect=1.5, diag_sharey=False, despine=False)
     g.map_lower(sns.regplot, lowess=True, ci=False,
                 line_kws={'color': 'red', 'lw': 1},
@@ -127,6 +125,11 @@ def plot_correlations(df, impute_na=True):
     # Add titles to the diagonal axes/subplots
     for ax, col in zip(np.diag(g.axes), df.columns):
         ax.set_title(col, y=0.82, fontsize=26)
+    
+    try:
+        plt.savefig(outfile, dpi=300, bbox_inches="tight")
+    except:
+        pass
 
 
 
@@ -156,7 +159,6 @@ def plot_confusion_matrix(y_true, y_pred, outfile):
     return cm
 
 
-
 def plot_stacked_feature_importances(df_feature_importances, target_name, model_names_plot, outfile):
     """
     Stack feature importances of multiple models into one barchart
@@ -169,6 +171,8 @@ def plot_stacked_feature_importances(df_feature_importances, target_name, model_
 
     ## plot
     plt.figure(figsize=(30, 22))
+    sns.set_style("whitegrid", {'axes.grid' : False})
+
     fig = df_feature_importances.plot.barh(
         stacked=True, 
         color={feature_importance_1:"darkblue", feature_importance_2:"steelblue", feature_importance_3:"grey"},
@@ -180,9 +184,9 @@ def plot_stacked_feature_importances(df_feature_importances, target_name, model_
     plt.title(f"Feature Importances for {target_name.replace('_',' ')}")
 
     ## legend
-    top_bar = mpatches.Patch(color="darkblue", label=model_name_1)  #TODO update with s.color_palette_models from settings
-    middle_bar = mpatches.Patch(color="steelblue", label=model_name_2)
-    bottom_bar = mpatches.Patch(color="grey", label=model_name_3)
+    top_bar = mpatches.Patch(color="darkblue", label=model_name_1, alpha=.7)  #TODO update with s.color_palette_models from settings
+    middle_bar = mpatches.Patch(color="steelblue", label=model_name_2, alpha=.7)
+    bottom_bar = mpatches.Patch(color="grey", label=model_name_3, alpha=.7)
     plt.tick_params(axis='x', which='major', labelsize=12)
     plt.tick_params(axis='y', which='major', labelsize=12)
     plt.legend(handles=[top_bar, middle_bar, bottom_bar], loc="lower right")
@@ -209,10 +213,7 @@ def plot_partial_dependence(df_pd_feature, feature_name:str, partial_dependence_
             y=df_pd_feature[partial_dependence_name], 
             **kwargs
         )
-        sns.rugplot(df_pd_feature, x=df_pd_feature[feature_name], 
-                    y=df_pd_feature[partial_dependence_name], 
-                    height=-.02)
-        # sns.rugplot(df_pd_feature, x=feature_name, y="yhat", height=-.02)
+        sns.rugplot(df_pd_feature, x=feature_name, height=.02, color="black")
     else:      
         sns.lineplot(
             data=df_pd_feature, 
@@ -221,9 +222,7 @@ def plot_partial_dependence(df_pd_feature, feature_name:str, partial_dependence_
             legend=False,
             **kwargs
         )
-        sns.rugplot(df_pd_feature, x=df_pd_feature[feature_name], 
-                    y=df_pd_feature[partial_dependence_name], 
-                    height=-.02)
+        sns.rugplot(df_pd_feature, x=feature_name, height=.02, color="black")
 
     #kwargs["ax"].get_xaxis().set_visible(False)
     kwargs["ax"].set_xlabel("")
@@ -323,7 +322,7 @@ def boxplot_outer_scores_ncv(models_scores, outfile):
         
         ## for all metrices except R2
         if name != "test_R2":
-            sns.set_style("whitegrid")
+            sns.set_style("whitegrid", {'grid.linestyle': ':'})
             sns.boxplot(
                 y=name, x="modelname", 
                 data=df_outer_scores_of_all_models, 
@@ -332,25 +331,25 @@ def boxplot_outer_scores_ncv(models_scores, outfile):
                 width=[0.4], boxprops=dict(alpha=.7),
             ).set(xlabel=None, ylabel=None)
         
-        ## only for R2 due that it has ofte outliers which leads to a large value-range on y-axis with small boxplots
-        else: 
-            sns.set_style("whitegrid")
-            sns.boxplot(
-                y=name, x="modelname", 
-                data=df_outer_scores_of_all_models, 
-                orient='v', ax=ax, 
-                palette=s.color_palette_models, 
-                width=[0.4], showfliers=False, boxprops=dict(alpha=.7),
-            ).set(xlabel=None, ylabel=None)
+        # ## only for R2 due that it has ofte outliers which leads to a large value-range on y-axis with small boxplots
+        # else: 
+        #     sns.set_style("whitegrid", {'grid.linestyle': ':'})
+        #     sns.boxplot(
+        #         y=name, x="modelname", 
+        #         data=df_outer_scores_of_all_models, 
+        #         orient='v', ax=ax, 
+        #         palette=s.color_palette_models, 
+        #         width=[0.4], showfliers=False, boxprops=dict(alpha=.7),
+        #     ).set(xlabel=None, ylabel=None)
 
-            ## report not visualized Rs scores aka outliers
-            boxplot_stats(df_outer_scores_of_all_models["test_R2"]).pop(0)['fliers']  ## outleirs from R2
-            logger.info(f"removed {len(np.array([0.4501175, 4501175]))} outliers to improve visualization of R2 value-range")
+        #     ## report not visualized Rs scores aka outliers
+        #     boxplot_stats(df_outer_scores_of_all_models["test_R2"]).pop(0)['fliers']  ## outleirs from R2
+        #     logger.info(f"removed {len(np.array([0.4501175, 4501175]))} outliers to improve visualization of R2 value-range")
 
         ax.set_xlabel(None, fontsize=35)
         ax.set_xticklabels(ax.get_xticklabels(), rotation=90, fontsize=25)
         ax.get_shared_y_axes().join(axes[0], *axes[:-1]),  # share y axis except for SMAPE
-        ax.axhline(y=0, color='black', linewidth=.8, alpha=.5, ls='--')  # add zero-line
+        ax.axhline(y=0, color='black', linewidth=.8, alpha=.7, ls='--')  # add zero-line
 
         # fig.tight_layout()
         plt.tight_layout()
