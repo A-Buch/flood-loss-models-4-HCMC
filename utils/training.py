@@ -98,10 +98,12 @@ class ModelFitting(object):
             y=self.y, 
             x=self.X,
             method=self.r_algorithm_name,  
-            outer_train_predict=True, # predictions on outer training fold
+            outer_train_predict=True, # save predictions on outer folds
             n_outer_folds=self.k_folds,
             n_inner_folds=self.k_folds,
-            finalCV=False,  
+            finalCV=False,  # False= return average of the best hyperparameters from outer CV folds for continuous/ ordinal hyperparamet
+            # NOTE if finalCV=True # model is fitted again on entire dataset which is biased due that samples were already seen during model tuning
+            # We wnat the final model as the model which performed best during outer cv
             tuneGrid=self.r_tunegrid(
                 self.param_space["mtry"][0], 
                 self.param_space["mtry"][1], 
@@ -113,7 +115,8 @@ class ModelFitting(object):
                 method = "repeatedcv", 
                 number = self.k_folds,  
                 repeats = self.repeats,  
-                savePredictions = "final"
+                savePredictions ="all",  # "final"= save predictions for the optimal tunning params
+                search="random"
             )
         )
         logger.info(f"\nSummary CRF \n {base.summary(models_trained_ncv)}")

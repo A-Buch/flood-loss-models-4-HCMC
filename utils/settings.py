@@ -43,7 +43,7 @@ def decorate_init_logger(func):
 
         # Log file handler
         log_file = "./tst_warning_coeff.log"
-        print(f"Creating log file {log_file} due to warning that regression coefficients are wrongly calculated")
+        print(f"Creating log file {log_file} due to warning that regression coefficients are all non significant")
         # os.path.exists(os.path.dirname(log_file))
         if not os.path.exists(log_file):             
             open(log_file, "w+").close()

@@ -29,7 +29,9 @@ def mean_absolute_percentage_error(y_true, y_pred):
 
 def symmetric_mean_absolute_percentage_error(y_true, y_pred):
     """" Calculate SMAPE from predicted and actual target  """
-    return 1/len(y_true) * np.sum(2 * np.abs(y_pred - y_true) / (np.abs(y_true) + np.abs(y_pred)) * 100) 
+    # return 1/len(y_true) * np.sum(2 * np.abs(y_pred - y_true) / (np.abs(y_true) + np.abs(y_pred)) * 100) 
+    # return 100/len(y_true) * np.sum(2 * np.abs(y_pred - y_true) / (np.abs(y_true) + np.abs(y_pred)) ) 
+    return 100/len(y_true) * np.sum(np.abs(y_pred - y_true) / (np.abs(y_true) + np.abs(y_pred)) ) 
 
 
 def root_mean_squared_error(y_true, y_pred):

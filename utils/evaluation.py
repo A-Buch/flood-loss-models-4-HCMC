@@ -36,7 +36,6 @@ caret = importr('caret') # package version needs to be higher than  >=  6.0-90
 ## pandas.DataFrames to R dataframes 
 pandas2ri.activate()
 
-mt = t.ModelFitting  # call Class for model training
 
 logger = s.init_logger("__model_evaluation__")
 
@@ -76,7 +75,7 @@ class ModelEvaluation(object):
         prediction_method (str): "predict" or "predict_proba"
         return: predict y and return model generalization perfromance
         """    
-        ## predict y on outer folds of nested cv
+        ## predict y of each outer folds by using the estimator from the respecitve inner fold 
         self.y_pred = cross_val_predict(
             self.models_trained_ncv,  # estimators from inner cv
             self.X, self.y,
@@ -134,10 +133,11 @@ class ModelEvaluation(object):
         """
         ## remove R2 from metrics due that it's maximized and therefroe as positive version returned from sklearn.cross_validate()
         return {
-            key: [ -1 * item for item in value] if key not in ("test_R2")   # for MAE, RMSE etc: -+ --> - , -- --> +
-            else [ 1 * item for item in value]                              # for R2 dont do anything
+            key: [ 1 * item for item in value] if key in ("test_R2")  #  for R2 dont do anything ue that it is maximized error metrics
+            else [ -1 * item for item in value]                       #  for MAE, RMSE etc (minimized error metrics) : -+ --> - , -- --> +     
                     for key, value in model_scores.items() 
         }
+
 
     def r_models_cv_predictions(self, idx=0):
         """
@@ -159,9 +159,9 @@ class ModelEvaluation(object):
     def r_model_evaluate_ncv(self):
         """ 
         Evaluate R model by nested cross-validation [outer folds]
-        return: predict y and return model generalization perfromance
+        return: predict y and return model generalization performance
         """
-        ## get y_pred of all k-folds into one pd.DataFrame
+        ## get y_pred of all k-folds from outer cv into one pd.DataFrame
         robjects.r('''
             r_get_y_pred <- function(model, verbose=FALSE) {
                 model$outer_result
@@ -182,11 +182,10 @@ class ModelEvaluation(object):
 
         self.calc_residuals()
 
-        ## TODO scores slightly differe from the average number of performance scores for eahc estimator
-        # get generalization performance on outer folds of nested cv
-        model_performance_ncv = {
-            #"test_MAE_old" : base.summary(self.models_trained_ncv)[3][2],  # higher than from test_MAE
-            "test_MAE" : mean_absolute_error(y_true, self.y_pred),
+        # get generalization performance on outer folds of nested cv, 
+        # y_pred are the predictions from the outer cv
+        model_performance_ncv = {          ## TODO scores slightly differ from the average number of performance scores for each estimator
+            "test_MAE" : mean_absolute_error(y_true, self.y_pred),   # TODO get metrics names fro self.score_metrics
             "test_RMSE" : em.root_mean_squared_error(y_true, self.y_pred),
             "test_MBE" : em.mean_bias_error(y_true, self.y_pred),
             "test_R2": r2_score(y_true, self.y_pred),
@@ -314,6 +313,7 @@ class ModelEvaluation(object):
         y_name = kwargs["y_name"]
         feature_name = kwargs["feature_name"]
         scale = kwargs["scale"]
+        # percentile_range = kwargs["percentiles"]
 
         X = Xy.dropna().drop(y_name, axis=1)
 
@@ -324,6 +324,8 @@ class ModelEvaluation(object):
         partial_dep = partial_dependence(   
             model, X=X, features=feature_name, 
             grid_resolution=X.shape[0], kind="average", #**further_params,
+            percentiles=(0.05, .95),
+            # percentiles=percentile_range,
         )
         partial_dep = pd.DataFrame(
             {
@@ -334,7 +336,7 @@ class ModelEvaluation(object):
         return partial_dep
 
 
-    ## decorator for R model
+    ## decorator for R model for partial dependences
     # Note: make sure that variables are not modified inside wrapper() eg. not do Xy = Xy.dropna()
     def decorator_func(self, model , Xy, y_name, feature_name, scale=True):
         """

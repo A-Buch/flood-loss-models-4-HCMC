@@ -12,8 +12,6 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.ensemble import BaggingRegressor, BaggingClassifier
 from sklearn.linear_model import LogisticRegression, ElasticNet, SGDClassifier
 from xgboost import XGBRegressor
-from sklearn.compose import TransformedTargetRegressor
-from sklearn.preprocessing import QuantileTransformer, PowerTransformer
 
 
 from sklearn.pipeline import Pipeline
@@ -37,7 +35,8 @@ def main():
     # Logistic Regression with Bagging
     ensemble_model = {
         'model': BaggingClassifier,
-        'kwargs': {'estimator': LogisticRegression()},
+        #'kwargs': {'estimator': LogisticRegression()},
+        'kwargs': {'estimator': LogisticRegression(class_weight={0:0.40, 1:0.60})},
         }
     pipe_logreg_bag = Pipeline([
         ('scaler', MinMaxScaler()),

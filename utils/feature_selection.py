@@ -19,7 +19,7 @@ from rpy2.robjects.conversion import localconverter
 
 import utils.settings as s
 
-logger = s.init_logger("__feature_selecetion__")
+logger = s.init_logger("__feature_selection__")
 
 pandas2ri.activate()
 # rpy2.ipython.html.init_printing()

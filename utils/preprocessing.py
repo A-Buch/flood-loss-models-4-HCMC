@@ -25,9 +25,7 @@ def load_config(config_file:str):
     :param config_file: path to config file (str)
     :return:
     """
-    assert os.path.exists(
-        config_file
-    ), f"Configuration file does not exist: {os.path.abspath(config_file)}"
+    assert os.path.exists(config_file), f"Configuration file does not exist: {os.path.abspath(config_file)}"
     with open(config_file, "r") as src:
         config = json.load(src)
     return config
@@ -56,16 +54,16 @@ def drop_typos(df):
     return df
 
 
-def check_types(x):
-    """
-    Converts strings to floats, the ones that cannot be converted are returned as None
-    :param x: Variable to be converted
-    :return:
-    """
-    if not isinstance(x, str):
-        return x
-    if x.isnumeric():
-        return float(x)
+# def check_types(x):
+#     """
+#     Converts strings to floats, the ones that cannot be converted are returned as None
+#     :param x: Variable to be converted
+#     :return:
+#     """
+#     if not isinstance(x, str):
+#         return x
+#     if x.isnumeric():
+#         return float(x)
 
 
 def percentage_of_nan(df):
