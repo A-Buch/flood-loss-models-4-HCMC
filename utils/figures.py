@@ -213,7 +213,6 @@ def plot_partial_dependence(df_pd_feature, feature_name:str, partial_dependence_
             y=df_pd_feature[partial_dependence_name], 
             **kwargs
         )
-        sns.rugplot(df_pd_feature, x=feature_name, height=.02, color="black")
     else:      
         sns.lineplot(
             data=df_pd_feature, 
@@ -222,7 +221,6 @@ def plot_partial_dependence(df_pd_feature, feature_name:str, partial_dependence_
             legend=False,
             **kwargs
         )
-        sns.rugplot(df_pd_feature, x=feature_name, height=.02, color="black")
 
     #kwargs["ax"].get_xaxis().set_visible(False)
     kwargs["ax"].set_xlabel("")
@@ -295,7 +293,8 @@ def plot_residuals(residuals, model_names_abbreviation,  model_names_plot, outfi
         plt.close()
 
 
-def boxplot_outer_scores_ncv(models_scores, outfile):
+def boxplot_outer_scores_ncv(models_scores, outfile): 
+    # TODO make plot with flexible number of models, currently limited to 3 models or one LogisticReg
     """
     Boxplot grouped by evalatuation metrics (eg MAE, RMSE..)
     models_scores (dict): nested dictionary with outer model scores
@@ -322,34 +321,54 @@ def boxplot_outer_scores_ncv(models_scores, outfile):
         
         ## for all metrices except R2
         if name != "test_R2":
+
             sns.set_style("whitegrid", {'grid.linestyle': ':'})
-            sns.boxplot(
-                y=name, x="modelname", 
-                data=df_outer_scores_of_all_models, 
-                orient='v', ax=ax, 
-                palette=s.color_palette_models,
-                width=[0.4], boxprops=dict(alpha=.7),
-            ).set(xlabel=None, ylabel=None)
+            
+            try:            # TODO make plot with flexible number of models
+               sns.boxplot(
+                    y=name, x="modelname", 
+                    data=df_outer_scores_of_all_models, 
+                    orient='v', ax=ax, 
+                    palette=s.color_palette_models, 
+                    width=[0.4], boxprops=dict(alpha=.7),
+                ).set(xlabel=None, ylabel=None)
+            
+            except KeyError or TypeError:
+                sns.boxplot(
+                    y=name, x="modelname", 
+                    data=df_outer_scores_of_all_models, 
+                    orient='v', ax=ax, 
+                    palette={df_outer_scores_of_all_models["modelname"][0] : "darkblue"},
+                    width=[0.4], boxprops=dict(alpha=.7),
+                ).set(xlabel=None, ylabel=None)
+            # try:
+            #     sns.boxplot(
+            #         y=name, x="modelname", 
+            #         data=df_outer_scores_of_all_models, 
+            #         orient='v', ax=ax, 
+            #         palette=s.color_palette_models,
+            #         width=[0.4], boxprops=dict(alpha=.7),
+            #     ).set(xlabel=None, ylabel=None)
+            # except KeyError:            # TODO make plot with flexible number of models
+            #    sns.boxplot(
+            #         y=name, x="modelname", 
+            #         data=df_outer_scores_of_all_models, 
+            #         orient='v', ax=ax, 
+            #         palette={"": "darkblue"},
+            #         width=[0.4], boxprops=dict(alpha=.7),
+            #     ).set(xlabel=None, ylabel=None)
+
         
-        # ## only for R2 due that it has ofte outliers which leads to a large value-range on y-axis with small boxplots
-        # else: 
-        #     sns.set_style("whitegrid", {'grid.linestyle': ':'})
-        #     sns.boxplot(
-        #         y=name, x="modelname", 
-        #         data=df_outer_scores_of_all_models, 
-        #         orient='v', ax=ax, 
-        #         palette=s.color_palette_models, 
-        #         width=[0.4], showfliers=False, boxprops=dict(alpha=.7),
-        #     ).set(xlabel=None, ylabel=None)
-
-        #     ## report not visualized Rs scores aka outliers
-        #     boxplot_stats(df_outer_scores_of_all_models["test_R2"]).pop(0)['fliers']  ## outleirs from R2
-        #     logger.info(f"removed {len(np.array([0.4501175, 4501175]))} outliers to improve visualization of R2 value-range")
-
         ax.set_xlabel(None, fontsize=35)
         ax.set_xticklabels(ax.get_xticklabels(), rotation=90, fontsize=25)
-        ax.get_shared_y_axes().join(axes[0], *axes[:-1]),  # share y axis except for SMAPE
-        ax.axhline(y=0, color='black', linewidth=.8, alpha=.7, ls='--')  # add zero-line
+        # regression task
+        if ("modelname" != "LogisticRegression") or ("modelname" != "RandomForestClassifier"):   
+            ax.get_shared_y_axes().join(axes[0], *axes[:-1]),  # share y axis except for SMAPE
+            ax.axhline(y=0, color='black', linewidth=.8, alpha=.7, ls='--')  # add zero-line
+        # classificaion task
+        else:  
+            ax.get_shared_y_axes().join(axes[0], *axes[:]),  # share all y axis (only for logReg)
+            ax.axhline(y=0.5, color='black', linewidth=.8, alpha=.7, ls='--')  # add 50%-line
 
         # fig.tight_layout()
         plt.tight_layout()
