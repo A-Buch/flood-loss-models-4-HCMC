@@ -9,7 +9,7 @@ __email__ = "a.buch@stud.uni-heidelberg.de"
 import joblib
 
 from sklearn.preprocessing import MinMaxScaler
-from sklearn.ensemble import BaggingRegressor, BaggingClassifier
+from sklearn.ensemble import BaggingRegressor, BaggingClassifier, RandomForestClassifier, RandomForestRegressor
 from sklearn.linear_model import LogisticRegression, ElasticNet, SGDClassifier
 from xgboost import XGBRegressor
 
@@ -49,7 +49,25 @@ def main():
         ('model', SGDClassifier(loss='log_loss', random_state=seed)) # log_loss’ gives logistic regression, a probabilistic classifier.
     ] )
 
-              
+    ############ Random Forest Classifier ##########
+
+    pipe_rf = Pipeline( steps = [
+        ('scaler', MinMaxScaler()), 
+        ('model', RandomForestClassifier(
+            random_state=seed, 
+            class_weight={0:0.40, 1:0.60}  # 0.4 0.6
+        ))
+    ] )
+
+    ############ Random Forest Regressor - REFERENCE MODEL ##########
+
+    pipe_ref_model = Pipeline( steps = [
+        ('scaler', MinMaxScaler()), 
+        ('model', RandomForestRegressor(
+            random_state=seed, 
+        ))
+    ] )      
+    
     ############  Elastic Net  ##################
     pipe_en = Pipeline( steps = [
             ('scaler', MinMaxScaler()), 
@@ -93,16 +111,20 @@ def main():
 
     ###########  Conditional Random Forest ##############
     pipe_crf = "cforest"
-    ## --> it seems to be possible to incoporate R models into sklearn pipeline but for this use case this implementation is out of scope
-    ## R model is called directly in python scripts
+    ## "pipe_crf" specifies CRF model from Rpackage
 
+
+
+    joblib.dump(pipe_ref_model, './pipelines/pipe_ref_model.pkl')  # REFERENCE model
+
+    joblib.dump(pipe_rf, './pipelines/pipe_rf.pkl')     # CLASSIFICATION models
 
     joblib.dump(pipe_logreg, './pipelines/pipe_logreg.pkl')
     joblib.dump(pipe_logreg_bag, './pipelines/pipe_logreg_bag.pkl')
     
     joblib.dump(pipe_sgd, './pipelines/pipe_sgd.pkl')
 
-    joblib.dump(pipe_en, './pipelines/pipe_en.pkl')
+    joblib.dump(pipe_en, './pipelines/pipe_en.pkl')     # REGRESSION models
     joblib.dump(pipe_en_bag, './pipelines/pipe_en_bag.pkl')
 
     joblib.dump(pipe_xgb, './pipelines/pipe_xgb.pkl')
