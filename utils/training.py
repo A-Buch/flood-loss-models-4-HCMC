@@ -87,6 +87,7 @@ class ModelFitting(object):
         return models_trained_ncv
         #return super().model_fit_ncv(**kwargs)
     
+
     def r_model_fit_ncv(self):
         """
         Optimatzation of R model by nested cross-validation  [inner and outer folds]
@@ -101,14 +102,15 @@ class ModelFitting(object):
             outer_train_predict=True, # save predictions on outer folds
             n_outer_folds=self.k_folds,
             n_inner_folds=self.k_folds,
-            finalCV=False,  # False= return average of the best hyperparameters from outer CV folds for continuous/ ordinal hyperparamet
-            # NOTE if finalCV=True # model is fitted again on entire dataset which is biased due that samples were already seen during model tuning
-            # We wnat the final model as the model which performed best during outer cv
+            finalCV=True,  ## model is CV fitted again on entire dataset to determine final model
             tuneGrid=self.r_tunegrid(
                 self.param_space["mtry"][0], 
                 self.param_space["mtry"][1], 
                 self.param_space["mtry"][2]
             ), 
+            pass_outer_folds=True,  # =False - otherwise repeated inner Folds not possible, =True -use same outer fold to build finalModel
+            # =True find final model based on CV on outer folds, same folds and no repeats used for model evaluation
+            savePredictions="final",  # mandatory to call to get final model (best estimator from outer folds) via $final_fit
             metric='MAE',
             controls = party.cforest_unbiased( ntree = 300),
             trControl = caret.trainControl(
@@ -124,40 +126,17 @@ class ModelFitting(object):
         return models_trained_ncv
             
 
-    # def final_model_fit(self):
-    #     """
-    #     Train final sklearn model on entire dataset to get Variable Selection
-    #     return: best-performed sklearn model
-    #     # """
-    #     # self.final_model = RandomizedSearchCV(
-    #     #     estimator=self.model,
-    #     #     param_distributions=self.param_space,
-    #     #     cv=self.outer_cv, 
-    #     #     scoring="neg_mean_absolute_error",
-    #     #     refit=True,   
-    #     #     random_state=self.seed,
-    #     # )
-    #     # self.final_model.fit(self.X, self.y)
-    #     # self.final_model = self.final_model.best_estimator_
-    #     predict(y)  # with best hyperprams
-    #     return self.final_model
-
-
-    def r_final_model_fit(self):
+    def r_final_model(self):
         """
-        Train final R model on entire dataset to get Variable Selection
+        Get final R model, which is the best-performed estimator (smallest MAE) from outer folds
         return: best-performed R model
         """
-        best_hyperparameters = fs.r_dataframe_to_pandas(
-            fs.r_best_hyperparamters(self.r_model_fit_ncv())
-            )
-        self.final_model = party.cforest(Formula(f'{self.target_name} ~ .'),  
-            data=pd.concat(
-                [self.y.reset_index(), self.X],
-                axis=1
-            ).drop("index", axis=1),
-            control= party.cforest_unbiased(mtry=best_hyperparameters.mtry, ntree=300)
-        )
+        robjects.r('''
+            r_final_model <- function(model, verbose=FALSE) {
+                model$final_fit$finalModel
+            }
+        ''')
+        final_model = robjects.globalenv['r_final_model'] 
+        final_model = final_model(self.r_model_fit_ncv())
+    
         return self.final_model
-
-    # return r_model_fit_ncv, r_final_model_fit
