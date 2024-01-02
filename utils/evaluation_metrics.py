@@ -57,7 +57,7 @@ def empirical_vs_predicted(y_true, y_pred):
                 'mean':  np.mean(y_set),
                 'min max':  [test_statistics[1][0], test_statistics[1][1]],
                 'variance': round(test_statistics[3], 2),
-                'variation': pd.DataFrame(y_set).apply(coef_variation)[0],
+                'coef_variation': pd.DataFrame(y_set).apply(coef_variation)[0],
             })
         )
     return pd.DataFrame(empirical_vs_predicted, index=(["empirical", "predicted"]))
