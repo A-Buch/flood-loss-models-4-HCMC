@@ -11,7 +11,7 @@ import pandas as pd
 from sklearn.metrics import mean_absolute_error, r2_score
 from scipy import stats
 
-import utils.settings as s
+import settings as s
 
 logger = s.init_logger("__evaluation_metrics__")
 
@@ -47,6 +47,12 @@ def empirical_vs_predicted(y_true, y_pred):
 
     for y_set in [y_true.astype(int), y_pred.astype(int)]:
         test_statistics = stats.describe(np.array(y_set))
+        ## coef. of variation
+        coef_variation = lambda x: np.std(x, ddof=1) / np.mean(x) * 100 
+        #calculate CV for each column in data frame
+        print(y_set.apply(coef_variation).sort_values())
+
+
         empirical_vs_predicted.append(
             pd.Series({
                 'nobs':  test_statistics[0],
@@ -54,6 +60,7 @@ def empirical_vs_predicted(y_true, y_pred):
                 'mean':  np.mean(y_set),
                 'min max':  [test_statistics[1][0], test_statistics[1][1]],
                 'variance': round(test_statistics[3], 2),
+                'variation': pd.DataFrame(y_set).apply(coef_variation)[0],
             })
         )
     return pd.DataFrame(empirical_vs_predicted, index=(["empirical", "predicted"]))
