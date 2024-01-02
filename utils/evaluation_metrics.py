@@ -49,9 +49,6 @@ def empirical_vs_predicted(y_true, y_pred):
         test_statistics = stats.describe(np.array(y_set))
         ## coef. of variation
         coef_variation = lambda x: np.std(x, ddof=1) / np.mean(x) * 100 
-        #calculate CV for each column in data frame
-        print(y_set.apply(coef_variation).sort_values())
-
 
         empirical_vs_predicted.append(
             pd.Series({
