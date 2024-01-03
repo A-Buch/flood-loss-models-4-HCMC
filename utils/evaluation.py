@@ -16,10 +16,10 @@ from sklearn.model_selection import cross_validate, cross_val_predict
 
 from scipy import stats
 
-import utils.feature_selection as fs
-import utils.training as t
-import utils.evaluation_metrics as em
-import utils.settings as s
+import feature_selection as fs
+import training as t
+import evaluation_metrics as em
+import settings as s
 
 import rpy2.robjects as robjects
 from rpy2.robjects import pandas2ri
@@ -76,17 +76,17 @@ class ModelEvaluation(object):
         return: predict y and return model generalization perfromance
         """    
         ## predict y of each outer folds by using the estimator from the respecitve inner fold 
+        ## NOTE dont use cross_val_predict() to access generalization performance
         self.y_pred = cross_val_predict(
             self.models_trained_ncv,  # estimators from inner cv
             self.X, self.y,
             cv=self.k_folds, # KFold without repeats to have for each sample one predicted value 
             method=prediction_method,
-            fit_params=sample_weights
+            fit_params=sample_weights,
         )
 
         ## Probability predictions (self.y_pred is 2-dimensional: predicted probabilities and respective predictions)
         if prediction_method == "predict_proba":
-
             y_pred_proba = self.y_pred       # rename it to avoid name confusion
 
             ## store highest predicted probabilities and respective predictions
@@ -100,13 +100,14 @@ class ModelEvaluation(object):
 
 
         ## get generalization performance on outer folds of nested cv
-        ## NOTE: cross_validate() gives always negitve verios of score if it should be minimized eg. MAE, and gives positive versions if score should be maiximzed eg. ACC
+        ## NOTE: cross_validate() gives always negative versions of score if it should be minimized eg. MAE, and gives positive versions if score should be maiximzed eg. ACC
         model_performance_ncv = cross_validate(
             self.models_trained_ncv, 
             self.X, self.y, 
             scoring=self.score_metrics,  # Strategies to evaluate the performance of the cross-validated model on the test set.
             cv=self.outer_cv, 
             return_estimator=True,
+            return_indices=True, # nedd to access y_pred from finla model done on respective outer test-set
         )         
         # try:
         #     print(
@@ -235,7 +236,7 @@ class ModelEvaluation(object):
 
     
 
-    def calc_regression_coefficients(self, model, y_pred_from_final_model):
+    def calc_regression_coefficients(self, model, y_true_from_model, y_pred_from_model):
         """
         Calculate regression coefficients and signficance from sklearn linear model
         final_model: fitted model from sklearn
@@ -251,8 +252,8 @@ class ModelEvaluation(object):
         print("coefs_intercept = np.append(model_intercept, list(model_coefs))", coefs_intercept )
         
         ## calc significance of coefficient (p-values),  modified based on : https://stackoverflow.com/questions/27928275/find-p-value-significance-in-scikit-learn-linearregression
-        newX = np.append(np.ones((len(self.X),1)), self.X, axis=1)
-        sd_b = self.calc_standard_error(self.y, y_pred_from_final_model, newX)  # standard error calculated based on MSE of newX
+        newX = np.append(np.ones((len(y_true_from_model),1)), self.X, axis=1)
+        sd_b = self.calc_standard_error(y_true_from_model, y_pred_from_model, newX)  # standard error calculated based on MSE of newX
         ts_b = coefs_intercept / sd_b        # t values
         p_values = self.calc_p_values(ts_b, newX)   # significance
 
@@ -323,7 +324,10 @@ class ModelEvaluation(object):
 
         partial_dep = partial_dependence(   
             model, X=X, features=feature_name, 
-            grid_resolution=X.shape[0], kind="average", #**further_params,
+            grid_resolution=X.shape[0], 
+            kind='both', # ICE plot and PDP
+            # kind="average", # PDPs
+            #  #**further_params,
             percentiles=(0.05, .95),
             # percentiles=percentile_range,
         )
@@ -352,9 +356,13 @@ class ModelEvaluation(object):
 
                 robjects.r('''
                     r_partial_dependence <- function(model, df, predictor_name, verbose=FALSE) {
-                        pdp::partial(model, train=df, pred.var=predictor_name, type="regression", plot=FALSE )  
+                        pdp::partial(
+                            model, train=df, pred.var=predictor_name, 
+                            grid.resolution = 100, 
+                            type="regression", plot=FALSE 
+                            )  
                     }
-                ''') #  , plot=FALSE --> to get pdp values
+                ''') #  , plot=FALSE --> to get pdp values, NOTE grid.resolution = 100 test if crf pdp goes up to the end of max(feature)
                 r_partial_dependence = robjects.globalenv['r_partial_dependence']
                 partial_dep = r_partial_dependence(model, pd.concat([y, X], axis=1), feature_name)               
                 
