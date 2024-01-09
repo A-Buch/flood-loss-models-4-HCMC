@@ -18,7 +18,7 @@ from scipy import stats
 
 import feature_selection as fs
 import training as t
-import evaluation_metrics as em
+import evaluation_utils as eu
 import settings as s
 
 import rpy2.robjects as robjects
@@ -38,6 +38,7 @@ pandas2ri.activate()
 
 
 logger = s.init_logger("__model_evaluation__")
+
 
 
 class ModelEvaluation(object):
@@ -98,6 +99,7 @@ class ModelEvaluation(object):
             )
             self.y_proba = self.y_proba.flatten()
 
+        self.calc_residuals()    
 
         ## get generalization performance on outer folds of nested cv
         ## NOTE: cross_validate() gives always negative versions of score if it should be minimized eg. MAE, and gives positive versions if score should be maiximzed eg. ACC
@@ -107,7 +109,7 @@ class ModelEvaluation(object):
             scoring=self.score_metrics,  # Strategies to evaluate the performance of the cross-validated model on the test set.
             cv=self.outer_cv, 
             return_estimator=True,
-            return_indices=True, # nedd to access y_pred from finla model done on respective outer test-set
+            return_indices=True, # need to access y_pred from finla model done on respective outer test-set
         )         
         # try:
         #     print(
@@ -120,24 +122,28 @@ class ModelEvaluation(object):
         #             model_performance_ncv["test_accuracy"].mean(), np.std(model_performance_ncv["test_accuracy"])
         #         ))
         
-        self.calc_residuals()    
-
         return model_performance_ncv
     
     
-    def negate_scores_from_sklearn_cross_valdiate(self, model_scores):
+    def negate_scores_from_sklearn_cross_valdiate(self, model_evaluation_results, metric_names=("test_MAE","test_MBE", "test_RMSE")):
         """
         reverse negative versions of metrics scores from sklearn.cross_validate(), only needed for metrics which are minimized such as MAE, RMSE, MBE ..
-        NOTE: this function is not needed for Rmodels evaluation or R2 due that they are maximized
+        NOTE: this function is not needed for Rmodels evaluation or R2
         model_scores (dict): key: name of metrics, value:  np.array of performance sores from each estimator evaluated from nested cv
+        metric_names (tuple): names of evaluation metrics which should be negated
         returns dict with metric names as keys and list of negated values
         """
-        ## remove R2 from metrics due that it's maximized and therefroe as positive version returned from sklearn.cross_validate()
-        return {
+        ## remove R2 from metrics due that it's maximized and therefore as positive version returned from sklearn.cross_validate()
+        dict_filter = lambda x, y: dict([ (i,x[i]) for i in x if i in set(y) ])  # filter dict for only metrices to negate
+        model_scores = dict_filter(model_evaluation_results, metric_names)
+        model_scores_negated =  {
             key: [ 1 * item for item in value] if key in ("test_R2")  #  for R2 dont do anything ue that it is maximized error metrics
-            else [ -1 * item for item in value]                       #  for MAE, RMSE etc (minimized error metrics) : -+ --> - , -- --> +     
-                    for key, value in model_scores.items() 
+            else [ -1 * item for item in value]                       #  for MAE, MBE, RMSE etc (minimized error metrics) : -+ --> - , -- --> +     
+                for key, value in model_scores.items() 
         }
+        # update org. version of model_evaluation_results
+        return {key: model_scores_negated.get(key, val) for key, val in model_evaluation_results.items()}
+
 
 
     def r_models_cv_predictions(self, idx=0):
@@ -187,31 +193,47 @@ class ModelEvaluation(object):
         # y_pred are the predictions from the outer cv
         model_performance_ncv = {          ## TODO scores slightly differ from the average number of performance scores for each estimator
             "test_MAE" : mean_absolute_error(y_true, self.y_pred),   # TODO get metrics names fro self.score_metrics
-            "test_RMSE" : em.root_mean_squared_error(y_true, self.y_pred),
-            "test_MBE" : em.mean_bias_error(y_true, self.y_pred),
+            "test_RMSE" : eu.root_mean_squared_error(y_true, self.y_pred),
+            "test_MBE" : eu.mean_bias_error(y_true, self.y_pred),
             "test_R2": r2_score(y_true, self.y_pred),
-            "test_SMAPE" : em.symmetric_mean_absolute_percentage_error(y_true, self.y_pred),
+            "test_SMAPE" : eu.symmetric_mean_absolute_percentage_error(y_true, self.y_pred),
         }
         return model_performance_ncv
 
 
+
     def calc_residuals(self):
         """
-        Get and store residuals
+        Get and store observed, predicted target, residuals and for clasifications probabilities for each class
+        prediction_method (str): predict (for regression) or predict_proba (for classification) 
         return: residuals
         """
-        self.residuals = pd.DataFrame(
-            {
-                "y_true": self.y,
-                "y_pred": np.array(self.y_pred),
-                "residuals": self.y - np.array(self.y_pred),
-            },
-            index=self.y.index,
-        )
+        ## for regressions
+        if self.y_proba is None:
+            self.residuals = pd.DataFrame(
+                {
+                    "y_true": self.y,
+                    "y_pred": np.array(self.y_pred),
+                    "residuals": self.y - np.array(self.y_pred),
+                },
+                index=self.y.index,
+            )
+        ## for classifications
+        else:
+            self.residuals = pd.DataFrame(
+                {
+                    "y_true": self.y,
+                    "y_pred": np.array(self.y_pred),
+                    "y_proba": np.array(self.y_proba),
+                    "residuals": self.y - np.array(self.y_pred),
+                },
+                index=self.y.index,
+            )       
+
         return self.residuals
         
 
-    # FIXME errorneous calculation of p-values 
+    # TODO check via test.py if calculation of p-values is errorneous
     def calc_standard_error(self, y, y_pred, newX):  # TODO move them outside class or to utils.py
         """
         y (np.array): observed target values
