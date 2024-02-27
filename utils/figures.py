@@ -10,19 +10,25 @@ import numpy as np
 import pandas as pd
 import contextlib
 
-from sklearn.metrics import confusion_matrix, PredictionErrorDisplay
+from sklearn.metrics import confusion_matrix, mean_absolute_error as mae
 from scipy import stats
-
 
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
-from matplotlib.cbook import boxplot_stats  
+# from matplotlib.cbook import boxplot_stats  
+from matplotlib.colors import to_rgba
 import seaborn as sns
 
-import utils.evaluation_metrics as em
-import utils.settings as s
+# import evaluation_utils as eu
+import settings as s
+import feature_selection as fs
 
-logger = s.init_logger("__figures__")
+from rpy2.robjects.packages import importr
+caret = importr("caret") # package version needs to be higher than  >=  6.0-90
+party = importr("party")
+
+
+logger = s.init_logger("__figures__") # TODO impl in the rest of the functions
 
 
 
@@ -40,9 +46,7 @@ def plot_spearman_rank(df_corr, min_periods=100, signif=True, psig=0.05):
         ## get the p value for pearson coefficient, subtract 1 on the diagonal
         pvals = df_corr.corr(
             method=lambda x, y: stats.spearmanr(x, y)[1], min_periods=min_periods
-            ) - np.eye(
-                *df_corr.corr(method="spearman", min_periods=min_periods).shape
-                )  # np.eye(): diagonal= ones, elsewere=zeros
+            ) - np.eye(*df_corr.corr(method="spearman", min_periods=min_periods).shape)  # np.eye(): diagonal= ones, elsewere=zeros
 
         #  main plot
         sns.heatmap(
@@ -76,6 +80,7 @@ def corrdot(*args, **kwargs):
     ax.annotate(corr_text, [.5, .5,],  xycoords="axes fraction",
                 ha='center', va='center', fontsize=font_size)
 
+
 def corrfunc(x, y, **kws):
     r, p = stats.spearmanr(x, y)
     p_stars = ''
@@ -88,6 +93,7 @@ def corrfunc(x, y, **kws):
     ax = plt.gca()
     ax.annotate(p_stars, xy=(0.65, 0.6), xycoords=ax.transAxes,
                 color='red', fontsize=70)
+
 
 
 def plot_correlations(df, outfile=None, impute_na=True):
@@ -110,8 +116,9 @@ def plot_correlations(df, outfile=None, impute_na=True):
                 scatter_kws={'color': 'black', 's': 20})
     g.map_diag(sns.distplot, color='black',
             kde_kws={'color': 'red', 'cut': 0.7, 'lw': 1},
-            hist_kws={'histtype': 'bar', 'lw': 2, #'bins': 'auto', # 10
-                        'edgecolor': 'k', 'facecolor':'grey'})
+            # hist_kws={'histtype': 'bar', 'lw': 2, #'bins': 'auto', # 10
+            #             'edgecolor': 'k', 'facecolor':'grey'}
+            )
     g.map_diag(sns.rugplot, color='black')
     g.map_upper(corrdot)
     g.map_upper(corrfunc)
@@ -125,12 +132,10 @@ def plot_correlations(df, outfile=None, impute_na=True):
     # Add titles to the diagonal axes/subplots
     for ax, col in zip(np.diag(g.axes), df.columns):
         ax.set_title(col, y=0.82, fontsize=26)
-    
     try:
         plt.savefig(outfile, dpi=300, bbox_inches="tight")
     except:
         pass
-
 
 
 def plot_confusion_matrix(y_true, y_pred, outfile):
@@ -141,22 +146,114 @@ def plot_confusion_matrix(y_true, y_pred, outfile):
     outfile (str): Location to store plot
     return: saved figure if assigned and pd.DataFrame with confusion matrix
     """
-    cm = pd.DataFrame(confusion_matrix(y_true, y_pred))
-    cm.set_index("true_" + cm.index.astype(str), inplace=True)
-    cm = cm.add_prefix("pred_")
+    # cm = pd.DataFrame(confusion_matrix(y_true, y_pred))
+    # cm.set_index("true_" + cm.index.astype(str), inplace=True)
+    # cm = cm.add_prefix("pred_")
 
+    # plt.figure(figsize=(6,6))
+    # sns.set(font_scale=1.5)
+    # sns.heatmap(
+    #     cm,
+    #     fmt="g", cmap="Blues", 
+    #     square=True, 
+    #     annot=True, annot_kws={"size":16},
+    #     cbar=True,
+    # )
     plt.figure(figsize=(6,6))
+    cm = confusion_matrix(y_true, y_pred, normalize='true')
     sns.set(font_scale=1.5)
     sns.heatmap(
         cm,
-        fmt="g", cmap="Blues", 
+        fmt=".2f", cmap="Blues", 
         square=True, 
         annot=True, annot_kws={"size":16},
         cbar=True,
     )
+    # plt.xlabel('Predicted')
+    # plt.ylabel('Actual')
+    plt.show(block=False)
+    
     with contextlib.suppress(Exception):
         plt.savefig(outfile, dpi=300, bbox_inches="tight")
     return cm
+
+
+
+def plot_learning_curves(model, train_set, test_set, target, outfile, model_name=None):
+    """
+    Plot learning curve of sklearn model
+    Code snippet: https://nvsyashwanth.github.io/machinelearningmaster/learning-curves/
+    """
+    
+    fig = plt.figure(figsize=(5, 5))
+    plt.style.use("seaborn-v0_8-white")
+
+    X_train = train_set.drop(target, axis=1)
+    y_train = train_set[target]
+    X_test = test_set.drop(target, axis=1)
+    y_test = test_set[target]
+
+    train_errors = []
+    test_errors = []
+
+    for i in range(1, len(X_train)):
+        model.fit(X_train[:i],y_train[:i])
+        y_train_pred = model.predict(X_train[:i])
+        y_test_pred = model.predict(X_test)
+        train_errors.append(mae(y_train_pred, y_train[:i]))
+        test_errors.append(mae(y_test_pred, y_test))
+
+    plt.plot(range(1, len(X_train)), train_errors, label="Training error", color="blue")
+    plt.plot(range(1, len(X_train)), test_errors, label="Test error", color="red")
+    plt.title(f"Learning curve for {model_name}")    
+    plt.xlabel("Number of samples in the training set")
+    plt.ylabel("MAE")
+    plt.legend()
+    plt.close()
+
+    fig.get_figure().savefig(outfile, dpi=300, bbox_inches="tight")
+
+
+# TODO impl plot_r_learning_curve() inside plot_learning_curve() 
+def plot_r_learning_curve(eval_set, target_name, outfile, r_model_name="cforest"):
+    """
+    eval_set: pd.DataFrame with entire dataset (test and train sets) incl target
+    """
+    ## calc learning curve of cforest
+    r_df_learning_curve = fs.r_dataframe_to_pandas(
+        caret.learning_curve_dat(
+            eval_set, target_name, 
+            proportion = np.arange(0.1, 1, 0.05), # proportion  of samples used for train set
+            method = "cforest", 
+            metric = "MAE", 
+            trControl=caret.trainControl(method="repeatedcv", number=5, repeats=1), 
+            verbose = False, 
+    ))
+    
+    ##  take mean of cross validated training sample sizes
+    test_set = r_df_learning_curve.loc[r_df_learning_curve["Data"]=="Resampling", :]
+    test_errors = test_set.groupby(["Training_Size"])["MAE"].mean().to_list()
+
+    ## train and test errors and sizes for plotting
+    train_set = r_df_learning_curve.loc[r_df_learning_curve["Data"]=="Training", :]
+    train_errors = train_set.loc[train_set["Data"]=="Training", "MAE"].to_list()
+    train_sizes = train_set.loc[train_set["Data"]=="Training", "Training_Size"]
+
+    ## plot learning curve 
+    fig = plt.figure(figsize=(5, 5))
+    plt.style.use("seaborn-v0_8-white")
+
+    plt.plot(range(0, len(train_sizes)), train_errors[:], label="Training error", color="blue")
+    plt.plot(range(0, len(train_set)), test_errors[:], label="Test error", color="red")
+    plt.title(f"Learning curve for {r_model_name}")    
+    plt.xlabel("Number of samples in the training set")
+    plt.xticks(range(0, len(train_sizes)), train_set["Training_Size"].to_list())
+    plt.ylabel("MAE")
+    plt.legend()
+    plt.close()
+
+    fig.get_figure().savefig(outfile, dpi=300, bbox_inches="tight")
+
 
 
 def plot_stacked_feature_importances(df_feature_importances, target_name, model_names_plot, outfile):
@@ -170,22 +267,22 @@ def plot_stacked_feature_importances(df_feature_importances, target_name, model_
     feature_importance_1, feature_importance_2, feature_importance_3 = df_feature_importances.columns.to_list()
 
     ## plot
-    plt.figure(figsize=(30, 22))
+    plt.figure(figsize=(30, 22))      ## TODO add figsize as kwargs fig_kwargs={'figsize':[15,15]}
     sns.set_style("whitegrid", {'axes.grid' : False})
 
     fig = df_feature_importances.plot.barh(
         stacked=True, 
-        color={feature_importance_1:"darkblue", feature_importance_2:"steelblue", feature_importance_3:"grey"},
+        color={feature_importance_1:"steelblue", feature_importance_2:"darkblue", feature_importance_3:"grey"},
         # color=s.color_palette_models,
         width=.5, alpha=.7,
     )
     plt.xlabel("Importance")
     plt.ylabel("")
-    plt.title(f"Feature Importances for {target_name.replace('_',' ')}")
+    plt.title(f"Feature Importances for {target_name.replace('_',' ')}", fontweight="bold", fontsize=16)
 
     ## legend
-    top_bar = mpatches.Patch(color="darkblue", label=model_name_1, alpha=.7)  #TODO update with s.color_palette_models from settings
-    middle_bar = mpatches.Patch(color="steelblue", label=model_name_2, alpha=.7)
+    top_bar = mpatches.Patch(color="steelblue", label=model_name_1, alpha=.7)  #TODO update with s.color_palette_models from settings
+    middle_bar = mpatches.Patch(color="darkblue", label=model_name_2, alpha=.7)
     bottom_bar = mpatches.Patch(color="grey", label=model_name_3, alpha=.7)
     plt.tick_params(axis='x', which='major', labelsize=12)
     plt.tick_params(axis='y', which='major', labelsize=12)
@@ -223,77 +320,142 @@ def plot_partial_dependence(df_pd_feature, feature_name:str, partial_dependence_
         )
 
     #kwargs["ax"].get_xaxis().set_visible(False)
-    kwargs["ax"].set_xlabel("")
-    kwargs["ax"].set_ylabel(feature_name)
+    kwargs["ax"].set_xlabel(feature_name)
+    kwargs["ax"].set_ylabel("")
     # ax.get_yaxis().set_visible(True)
+
     kwargs["ax"].tick_params(
         axis='x',          # changes apply to the x-axis
         which='both',      # both major and minor ticks are affected
         bottom='on',      # ticks along the bottom edge are off
-        top='off',         # ticks along the top edge are off
+        top=False,         # ticks along the top edge are off
         labelbottom='off'  # labels along the bottom edge are off)
         )
     kwargs["ax"].tick_params(
         axis='y',
         which='both',
         left='on',
-        right='on',
+        right=False,
     )
     plt.tight_layout()
     plt.savefig(outfile, dpi=300, bbox_inches="tight")
     
-   
-def plot_residuals(residuals, model_names_abbreviation,  model_names_plot, outfile):
+
+
+def plot_observed_predicted(y_true, y_pred, hue, hue_colors=("darkgrey","steelblue"), xlabel="observed", ylabel="predicted", alpha=0.6, legend=False, outfile="test.png"):
     """
-    Generate plots of residuals and write residuals to csv file
+    Scatter plot of observations vs predictions with optional class colors
+    NOTE: hue is currently limited to binary cases
+    # Code Snippet: https://stackoverflow.com/questions/66667334/python-seaborn-alpha-by-hue
+    """
+
+    sns.set(style="white", font_scale=1.2)
+
+    color_dict = {
+        0: to_rgba(hue_colors[0], alpha), # set transparency for each class independently
+        1: to_rgba(hue_colors[1], alpha)
+    }
+    
+    g = sns.JointGrid(
+        x=y_true, y=y_pred, hue=hue,
+        height=5, space=0,)
+    # g.plot_joint(sns.scatterplot, palette=color_dict, edgecolors=color_dict, legend=legend)
+    p = sns.scatterplot(
+        x=y_true, y=y_pred, hue=hue, 
+        palette=color_dict, edgecolors=color_dict, legend=legend, 
+        ax=g.ax_joint)
+    
+    if legend is True:
+        #p.legend(fontsize=10, )  # outside plot: bbox_to_anchor= (1.2,1)
+        plt.setp(p.get_legend().get_texts(), fontsize='12')  
+        plt.setp(p.get_legend().get_title(), fontsize='15')
+
+    g.plot_marginals(sns.histplot, kde=True, palette=color_dict, fill=True) #multiple='stack')
+        # sns.displot(penguins, x="flipper_length_mm", kind="kde")
+
+    g1 = sns.regplot(
+        x=y_true, y=y_pred, 
+        line_kws={"lw":1.},
+        scatter=False, ax=g.ax_joint)
+    regline = g1.get_lines()[0]
+    regline.set_color('steelblue')
+
+    x0, x1 = (0, 100) 
+    y0, y1 = (0, 100)
+    lims = [min(x0, y0), max(x1, y1)]
+    g.ax_joint.plot(lims, lims, c= "black", lw=.5,) # equal line
+    g.set_axis_labels(xlabel=xlabel, ylabel=ylabel)
+
+    # save plot
+    plt.savefig( outfile, dpi=300, bbox_inches="tight")
+
+    plt.show()
+   # plt.close()
+
+
+def plot_residuals(df_residuals, model_names_abbreviation,  model_names_plot, outfile):
+    """
+    Generate plots of residuals , TOdO write residuals to csv file
     residuals : model residuals, property from ModelEvaluation.residuals
-    X : pd.DataFrame with predictors
-    feature_name (str ): name of feature to group residuals
-    model_name (str): model's name
-    out_dir (str): Path to store figures and csv file
+    model_names_abbreviation (str): if None than plot directly is called, otherwise figures plotted next to each other grouped by model names 
+    model_names_plot  : TOdO
+    NOT IMPL: feature_name (str ): name of feature to group residuals
+    outfile (str): Path and file to store figures
     """
+
+    sns.set_style('white', rc={
+        'xtick.bottom': True,
+        'ytick.left': True,
+    })
+
     models_n = len(model_names_plot)
                         
-    f, (ax0, ax1) = plt.subplots( 2, models_n, figsize=(18, 8)) # sharey="row", 
+    ## TODO add figsize as kwargs fig_kwargs={'figsize':[15,15]}
+    
+    f, (ax0, ax1) = plt.subplots( 2, models_n, figsize=(12, 8), sharex="col", sharey="row")
 
-    for idx, abbrev, full_name in zip(range(0, models_n), model_names_abbreviation, model_names_plot):
+    for idx, abbrev, full_name, color in zip(range(0, models_n), model_names_abbreviation, model_names_plot, ["steelblue", "darkblue", "grey"]):
         
-        y_true = residuals[abbrev]["y_true"] 
-        y_pred = residuals[abbrev]["y_pred"]
-
-        PredictionErrorDisplay.from_predictions(
-            y_true,
-            y_pred,
-            kind="actual_vs_predicted",
+        y_true = df_residuals[abbrev]["y_true"] 
+        y_pred = df_residuals[abbrev]["y_pred"]
+        residuals = df_residuals[abbrev]["residual"]
+        
+        ## 1.st plot obs ~ pred
+        sns.scatterplot(
+            x=y_true, 
+            y=y_pred,
             ax=ax0[idx],
-            scatter_kwargs={"alpha":.5},
+            alpha=.5,
+            color=color
         )
-        ax0[idx].set_title(f"{full_name} regression ")
+        ax0[idx].set_title(f"{full_name} regression")
+        ax0[idx].axhline(0, ls='--')
+        ax0[idx].set_ylabel("predictions")
 
 
-        # Add the score in the legend of each axis
-        for name, score in em.compute_score(y_true, y_pred).items():
-            ax0[idx].plot([], [], " ", label=f"{name}={score}")
-            ax0[idx].legend(loc="upper right")
-
-        # plot the residuals vs the predicted values
-        PredictionErrorDisplay.from_predictions(
-            y_true,
-            y_pred,
-            kind="residual_vs_predicted",
+        ## 2.nd obs ~ residuals
+        sns.scatterplot(
+            x=y_true, 
+            y=residuals,
             ax=ax1[idx],
-            scatter_kwargs={"alpha":.5},
+            alpha=.5,
+            color=color
         )
-        ax1[idx].set_title(f"{full_name} regression ")
+        # ax1[idx].set_title(f"{full_name} regression ")
+        ax1[idx].set_xlabel("observations")
+        ax1[idx].set_ylabel("residuals [prediction - observation]")
+        ax1[idx].axhline(0, ls='--')
 
         f.get_figure().savefig(outfile, dpi=300, bbox_inches="tight")
+        plt.suptitle("Residual distribution from the final model")
 
         plt.subplots_adjust(top=0.2)
         plt.tight_layout()
         plt.close()
 
 
-def boxplot_outer_scores_ncv(models_scores, outfile): 
+
+def boxplot_outer_scores_ncv(models_scores, outfile, target_name): 
     # TODO make plot with flexible number of models, currently limited to 3 models or one LogisticReg
     """
     Boxplot grouped by evalatuation metrics (eg MAE, RMSE..)
@@ -311,6 +473,8 @@ def boxplot_outer_scores_ncv(models_scores, outfile):
     names = df_outer_scores_of_all_models.columns.drop('modelname')
     ncols = len(names)
     fig, axes = plt.subplots(1, ncols, figsize=(25, 10), layout="constrained")
+    
+    ## TODO add figsize as kwargs fig_kwargs={'figsize':[15,15]}
 
     # plot
     for name, ax in zip(names, axes.flatten()):
@@ -333,7 +497,7 @@ def boxplot_outer_scores_ncv(models_scores, outfile):
                     width=[0.4], boxprops=dict(alpha=.7),
                 ).set(xlabel=None, ylabel=None)
             
-            except KeyError or TypeError:
+            except KeyError or TypeError:  # if only one model
                 sns.boxplot(
                     y=name, x="modelname", 
                     data=df_outer_scores_of_all_models, 
@@ -341,26 +505,10 @@ def boxplot_outer_scores_ncv(models_scores, outfile):
                     palette={df_outer_scores_of_all_models["modelname"][0] : "darkblue"},
                     width=[0.4], boxprops=dict(alpha=.7),
                 ).set(xlabel=None, ylabel=None)
-            # try:
-            #     sns.boxplot(
-            #         y=name, x="modelname", 
-            #         data=df_outer_scores_of_all_models, 
-            #         orient='v', ax=ax, 
-            #         palette=s.color_palette_models,
-            #         width=[0.4], boxprops=dict(alpha=.7),
-            #     ).set(xlabel=None, ylabel=None)
-            # except KeyError:            # TODO make plot with flexible number of models
-            #    sns.boxplot(
-            #         y=name, x="modelname", 
-            #         data=df_outer_scores_of_all_models, 
-            #         orient='v', ax=ax, 
-            #         palette={"": "darkblue"},
-            #         width=[0.4], boxprops=dict(alpha=.7),
-            #     ).set(xlabel=None, ylabel=None)
+            
+        ax.set_xticks([])
+        # ax.set_xticklabels(ax.get_xticklabels(), rotation=90, fontsize=25)
 
-        
-        ax.set_xlabel(None, fontsize=35)
-        ax.set_xticklabels(ax.get_xticklabels(), rotation=90, fontsize=25)
         # regression task
         if ("modelname" != "LogisticRegression") or ("modelname" != "RandomForestClassifier"):   
             ax.get_shared_y_axes().join(axes[0], *axes[:-1]),  # share y axis except for SMAPE
@@ -370,10 +518,84 @@ def boxplot_outer_scores_ncv(models_scores, outfile):
             ax.get_shared_y_axes().join(axes[0], *axes[:]),  # share all y axis (only for logReg)
             ax.axhline(y=0.5, color='black', linewidth=.8, alpha=.7, ls='--')  # add 50%-line
 
-        # fig.tight_layout()
+        ax.tick_params(axis='y', labelsize=20)
+        ax.set_title(name.split("_")[1], fontsize=20)
+        ax.xlabel("")
+
+        plt.suptitle(
+            f"Prediction errors of the best-performed estimators for {target_name}, assessed by nested cross-validation", 
+            fontweight="bold",  fontsize=25)
+        plt.subplots_adjust(top=0.955)
+
+        ## legend
+        top_bar = mpatches.Patch(color="steelblue", label="Elastic Net", alpha=.7)  #TODO update with s.color_palette_models from settings
+        middle_bar = mpatches.Patch(color="darkblue", label="Conditional Random Forest", alpha=.7)
+        bottom_bar = mpatches.Patch(color="grey", label="XGBRegressor", alpha=.7)
+        plt.legend(handles=[top_bar, middle_bar, bottom_bar], fontsize=20, loc="best")
+        # plt.legend(handles=[top_bar, middle_bar, bottom_bar], fontsize=20, loc="lower center", bbox_to_anchor=(0.5, 0.1))
+        # ax.title(name, fontsize=14)
+            
         plt.tight_layout()
         plt.savefig(outfile, dpi=300, bbox_inches="tight")  #format='jpg'
-        
+
+
+
+def plot_boxplot_scatterplot(df, group, column, scatterpoints):
+    """
+    """
+    all_input_p = df
+    grouped = all_input_p.groupby(group)
+    categories = np.unique(all_input_p[scatterpoints])
+    colors = np.linspace(0, 1, len(categories))
+    colordict = dict(zip(categories, colors))  
+    all_input_p[scatterpoints] = all_input_p[scatterpoints].apply(lambda x: colordict[x])
+
+
+    names, vals, xs, colrs = [], [] ,[], []
+
+    for i, (name, subdf) in enumerate(grouped):
+        names.append(name)
+        vals.append(subdf[column].tolist())
+        xs.append(np.random.normal(i+1, 0.04, subdf.shape[0]))
+        colrs.append(subdf[scatterpoints].tolist())
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+
+    p = ax.boxplot(
+        vals, labels=names,
+        # width=.5,
+        showfliers=False,
+        patch_artist=True,
+        #boxprops={"facecolor":(1,0,0,.2), "edgecolor":'k'}
+        boxprops={"facecolor":"steelblue", "alpha":0.4},
+        whiskerprops={"color":"k", "alpha":0.4},
+        capprops={"color":"k", "alpha":0.4},
+        )
+    for patch, color in zip(p['boxes'], colors):
+            # patch.set_facecolor("steelblue",)
+            patch.set_edgecolor("black")
+
+    # ngroup = len(vals)
+    # clevels = np.linspace(0., 1., ngroup)
+
+    for x, val, colr in zip(xs, vals, colrs):
+        print(len(colr))
+        # plt.scatter(x, val, c=cm.prism(clevel), alpha=0.4)
+        # plt.scatter(x, val, c=colr, alpha=1., marker="x")
+        sns.scatterplot(
+            x=x, y=val, 
+            hue=colr, edgecolors=colr,
+            marker="o", s=20, lw=0,
+            # marker="x", s=60, lw=3,
+        legend=False, palette=["green", "blue", "red"]
+        # legend=True, palette=["green", "blue", "red"]
+        )
+    plt.xlabel("monhtly sale rates [€]")
+    plt.ylabel(f"{column}")
+    # plt.ylabel("fraction of implemented non-structural measures")
+    #plt.ylabel("fraction of implemented emergency measures")
+
 
 
     # ## Plot scatter plot of residuals by variable

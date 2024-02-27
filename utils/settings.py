@@ -12,23 +12,41 @@ import logging
 import functools
 
 
-def init():
 
-    global seed
-    seed = 42   # use same seed for across all methods
+# global seed
+seed = 42   # use same seed for across all methods
 
-    global color_palette_models  # color palettes for models 
-    color_palette_models = {
-        "cforest":  "darkblue", 
-        "ElasticNet": "steelblue", 
-        "XGBRegressor":  "grey", 
-    }
-    # global shortnames_modelnames_colors        # define modelnames and their abbreviations and colors for plotting
-    # shortnames_modelnames_colors={
-    #     "Conditional Random Forest": {"cforest": "darkblue"}, 
-    #     "Elastic Net": {"ElasticNet":"steelblue"}, 
-    #     "XGBoost": {"XGBRegressor": "grey"}, 
-    # }
+# global color_palette_models  # color palettes for models 
+color_palette_models = {
+    "ElasticNet": "steelblue", 
+    "cforest":  "darkblue", 
+    "XGBRegressor":  "grey", 
+}
+# global shortnames_modelnames_colors        # define modelnames and their abbreviations and colors for plotting
+# shortnames_modelnames_colors={
+#     "Conditional Random Forest": {"cforest": "darkblue"}, 
+#     "Elastic Net": {"ElasticNet":"steelblue"}, 
+#     "XGBoost": {"XGBRegressor": "grey"}, 
+# }
+
+## nice feature names for the figures
+feature_names_plot = {
+    "flowvelocity" : "flow velocity",
+    "shp_employees": "no. employees",
+    "water_depth_cm": "water depth inside",
+    "emergency_measures": "emergency measures",
+    'flood_experience': "flood experience", 
+    'inundation_duration_h': "inundation duration", 
+    'precautionary_measures_lowcost': "non-structural measures", 
+    "precautionary_measures_expensive": "structural measures",
+    'bage': "building age", 
+    'b_area': "building area",
+    'hh_monthly_income_euro': "mthly. income", 
+    "shp_avgmonthly_sale_euro": "mthly. sales",
+    'resilience' : "resilience",
+    'contaminations': "contaminations"
+}
+
 
 ## decorator for logger
 def decorate_init_logger(func):
@@ -47,8 +65,6 @@ def decorate_init_logger(func):
         # os.path.exists(os.path.dirname(log_file))
         if not os.path.exists(log_file):             
             open(log_file, "w+").close()
-
-        # TODO find out how to add formatter and streamhandler from wrapped func to create logger input for log_file
 
         return logger
 
