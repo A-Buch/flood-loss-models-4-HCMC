@@ -11,6 +11,11 @@ import pandas as pd
 from sklearn.metrics import mean_absolute_error, r2_score
 from scipy import stats
 
+import settings as s
+
+logger = s.init_logger("__evaluation_metrics__")
+
+
 
 def mean_bias_error(y_true, y_pred):
     """" Calculate MBE from predicted and actual target  """
@@ -24,7 +29,9 @@ def mean_absolute_percentage_error(y_true, y_pred):
 
 def symmetric_mean_absolute_percentage_error(y_true, y_pred):
     """" Calculate SMAPE from predicted and actual target  """
-    return 1/len(y_true) * np.sum(2 * np.abs(y_pred - y_true) / (np.abs(y_true) + np.abs(y_pred)) * 100) 
+    # return 1/len(y_true) * np.sum(2 * np.abs(y_pred - y_true) / (np.abs(y_true) + np.abs(y_pred)) * 100) 
+    # return 100/len(y_true) * np.sum(2 * np.abs(y_pred - y_true) / (np.abs(y_true) + np.abs(y_pred)) ) 
+    return 100/len(y_true) * np.sum(np.abs(y_pred - y_true) / (np.abs(y_true) + np.abs(y_pred)) ) 
 
 
 def root_mean_squared_error(y_true, y_pred):
@@ -40,6 +47,9 @@ def empirical_vs_predicted(y_true, y_pred):
 
     for y_set in [y_true.astype(int), y_pred.astype(int)]:
         test_statistics = stats.describe(np.array(y_set))
+        ## coef. of variation
+        coef_variation = lambda x: np.std(x, ddof=1) / np.mean(x) * 100 
+
         empirical_vs_predicted.append(
             pd.Series({
                 'nobs':  test_statistics[0],
@@ -47,6 +57,7 @@ def empirical_vs_predicted(y_true, y_pred):
                 'mean':  np.mean(y_set),
                 'min max':  [test_statistics[1][0], test_statistics[1][1]],
                 'variance': round(test_statistics[3], 2),
+                'coef_variation': pd.DataFrame(y_set).apply(coef_variation)[0],
             })
         )
     return pd.DataFrame(empirical_vs_predicted, index=(["empirical", "predicted"]))
@@ -66,7 +77,7 @@ def evaluation_report(y_true, y_pred):
     mbe = mean_bias_error(y_true, y_pred)
     r2c = r2_score(y_true, y_pred)
 
-    print(
+    logger.info(
     f"""Model Performance:
         Root Mean Square Error: {round(rmse,2)}
         Symmetric Mean Abs. Percentage Error: {round(smape,2)}

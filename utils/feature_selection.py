@@ -12,12 +12,14 @@ from sklearn.preprocessing import MinMaxScaler
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 
 
-import rpy2
 import rpy2.robjects as robjects
 from rpy2.robjects.packages import importr
 from rpy2.robjects import pandas2ri # pandas.DataFrames to R dataframes 
 from rpy2.robjects.conversion import localconverter
-import rpy2.ipython.html # print r df in html
+
+import utils.settings as s
+
+logger = s.init_logger("__feature_selection__")
 
 pandas2ri.activate()
 # rpy2.ipython.html.init_printing()
@@ -38,14 +40,14 @@ def equal_freq_binning(df, variable_name, cuts=3, group_labels=None, drop_old_va
     """
     if group_labels is None:
         group_labels = ["low", "medium", "high"]
-    print(df.shape[0], "records are euqally split into categories, so that same number of records is in each class (equal frequency binning) ")
-    print("Group labels and bins :", group_labels, pd.qcut(df[variable_name], q=cuts).value_counts())
+    logger.info(f"{df.shape[0]} records are euqally split into categories, so that same number of records is in each class (equal frequency binning) ")
+    logger.info(f"Group labels and bins : {group_labels, pd.qcut(df[variable_name], q=cuts).value_counts()}")
 
     new_variable_name = variable_name + "_c"
     try:
         df[new_variable_name] = pd.qcut(df[variable_name], q=cuts, labels=group_labels)
     except Exception:
-        print("drop dublicates")
+        logger.info("drop dublicates")
         df[new_variable_name] = pd.qcut(df[variable_name], q=cuts, duplicates="drop")
 
     if drop_old_variable is True:
@@ -137,7 +139,7 @@ def vif_score(X_scaled_drop_nan):
         for i in range(len(X_scaled_drop_nan.columns))
     ]
     df_vif = df_vif.sort_values("vif_scores", ascending=False).reset_index(drop=True)
-    print("averaged VIF score is around: ", round(df_vif.vif_scores.mean(),1))
+    logger.info(f"averaged VIF score is around: {round(df_vif.vif_scores.mean(),1)}")
 
     return df_vif
 
@@ -148,7 +150,7 @@ def normalize_feature_importances(df_feature_importances, scale_range=(0,10)):
     scale_range (tuple of integers): range of scale (min, max) 
     return: scaled pd.DataFrame 
     """
-    print(f"Normalize columns to scale: {scale_range[0]} - {scale_range[1]}")
+    logger.info(f"Normalize columns to scale: {scale_range[0]} - {scale_range[1]}")
     ## scale importance scores to  same units (non important feautres were removed before)
     df_feature_importances = pd.DataFrame(
         MinMaxScaler(feature_range=scale_range).fit_transform(df_feature_importances), 
@@ -170,7 +172,7 @@ def calc_weighted_sum_feature_importances(df_feature_importances, model_weights)
     ## assigne weights to importnace scores; weight better models stronger
     models_fi_list = []
     for model_fi, weight in model_weights.items(): 
-        model = model_fi.split("_")[0]
+        model_fi.split("_")[0]
         model_fi_weighted = f"{model_fi}_weighted"
         df_feature_importances[model_fi_weighted] =  df_feature_importances[model_fi] / weight
         models_fi_list.append(model_fi_weighted)
@@ -192,15 +194,15 @@ def save_selected_features(X_train, y_train, selected_feat_cols, filename="fs_mo
     selected_feat = X_train.loc[:,selected_feat_cols]
     not_selected_feat = X_train.drop( selected_feat, axis=1)
 
-    print(f"total features: {X_train.shape[1]}")
-    print(f"dropped features: {len(not_selected_feat.columns)}")
-    print(f"selected {len(selected_feat_cols)} features: \n{X_train[selected_feat_cols].columns.to_list()}\n")  # noqa: E501
+    logger.info(f"total features: {X_train.shape[1]}")
+    logger.info(f"dropped features: {len(not_selected_feat.columns)}")
+    logger.info(f"selected {len(selected_feat_cols)} features: \n{X_train[selected_feat_cols].columns.to_list()}\n")  # noqa: E501
 
     ## write selected features from training set to disk
     train = pd.concat([y_train, X_train], axis=1)
     df = train[ y_train.columns.to_list() + selected_feat_cols.to_list() ]
 
-    print(f"Saving selected features to disk: {filename}")
+    logger.info(f"Saving selected features to disk: {filename}")
     df.to_excel(filename, index=False)
 
 
