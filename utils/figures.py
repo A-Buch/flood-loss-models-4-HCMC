@@ -205,6 +205,8 @@ def plot_learning_curves(model, train_set, test_set, target, outfile, model_name
 
     plt.plot(range(1, len(X_train)), train_errors, label="Training error", color="blue")
     plt.plot(range(1, len(X_train)), test_errors, label="Test error", color="red")
+    plt.ylim(0, 25)  # limit plot to < 25 MAE for uniform scales across the models
+
     plt.title(f"Learning curve for {model_name}")    
     plt.xlabel("Number of samples in the training set")
     plt.ylabel("MAE")
@@ -297,11 +299,12 @@ def plot_stacked_feature_importances(df_feature_importances, target_name, model_
 def plot_partial_dependence(df_pd_feature, feature_name:str, partial_dependence_name:str, categorical:list, outfile, **kwargs):
     """
     Creates plots for partial dependecies for multiple models
-    :param model: Model instance
-    :param X_train: 
+    :param df_pd_feature: df_pd_feature
+    :param feature_name: name of feature (x-axis)
+    :param partial_dependence_name: name of target (y-axis)
     :param feature_names: List of features
-    :param categorical (list): list of features which are categorical
-    :return:
+    :param categorical (list): list of features which are categorical TODO make as boolean
+    :return: plot and png of PDP
     """
     if feature_name in categorical:
         sns.barplot(
@@ -414,7 +417,7 @@ def plot_residuals(df_residuals, model_names_abbreviation,  model_names_plot, ou
     
     f, (ax0, ax1) = plt.subplots( 2, models_n, figsize=(12, 8), sharex="col", sharey="row")
 
-    for idx, abbrev, full_name, color in zip(range(0, models_n), model_names_abbreviation, model_names_plot, ["steelblue", "darkblue", "grey"]):
+    for idx, abbrev, model_name, color in zip(range(0, models_n), model_names_abbreviation, model_names_plot, ["steelblue", "darkblue", "grey"]):
         
         y_true = df_residuals[abbrev]["y_true"] 
         y_pred = df_residuals[abbrev]["y_pred"]
@@ -428,8 +431,9 @@ def plot_residuals(df_residuals, model_names_abbreviation,  model_names_plot, ou
             alpha=.5,
             color=color
         )
-        ax0[idx].set_title(f"{full_name} regression")
-        ax0[idx].axhline(0, ls='--')
+        sns.regplot(x=y_true, y=y_pred, ax=ax0[idx], scatter=False)
+        
+        ax0[idx].set_title(f"{model_name} regression")
         ax0[idx].set_ylabel("predictions")
 
 
@@ -446,10 +450,10 @@ def plot_residuals(df_residuals, model_names_abbreviation,  model_names_plot, ou
         ax1[idx].set_ylabel("residuals [prediction - observation]")
         ax1[idx].axhline(0, ls='--')
 
-        f.get_figure().savefig(outfile, dpi=300, bbox_inches="tight")
-        plt.suptitle("Residual distribution from the final model")
-
+        plt.suptitle("Residual distributions of the best-performed estimators", fontweight="bold",  fontsize=25)
         plt.subplots_adjust(top=0.2)
+
+        f.get_figure().savefig(outfile, dpi=300, bbox_inches="tight")
         plt.tight_layout()
         plt.close()
 
@@ -506,7 +510,7 @@ def boxplot_outer_scores_ncv(models_scores, outfile, target_name):
                     width=[0.4], boxprops=dict(alpha=.7),
                 ).set(xlabel=None, ylabel=None)
             
-        ax.set_xticks([])
+        ax.set_xticks([])  # surpress x tick labels of model names
         # ax.set_xticklabels(ax.get_xticklabels(), rotation=90, fontsize=25)
 
         # regression task
@@ -520,7 +524,7 @@ def boxplot_outer_scores_ncv(models_scores, outfile, target_name):
 
         ax.tick_params(axis='y', labelsize=20)
         ax.set_title(name.split("_")[1], fontsize=20)
-        ax.xlabel("")
+        # ax.xlabel("")
 
         plt.suptitle(
             f"Prediction errors of the best-performed estimators for {target_name}, assessed by nested cross-validation", 
@@ -531,8 +535,7 @@ def boxplot_outer_scores_ncv(models_scores, outfile, target_name):
         top_bar = mpatches.Patch(color="steelblue", label="Elastic Net", alpha=.7)  #TODO update with s.color_palette_models from settings
         middle_bar = mpatches.Patch(color="darkblue", label="Conditional Random Forest", alpha=.7)
         bottom_bar = mpatches.Patch(color="grey", label="XGBRegressor", alpha=.7)
-        plt.legend(handles=[top_bar, middle_bar, bottom_bar], fontsize=20, loc="best")
-        # plt.legend(handles=[top_bar, middle_bar, bottom_bar], fontsize=20, loc="lower center", bbox_to_anchor=(0.5, 0.1))
+        plt.legend(handles=[top_bar, middle_bar, bottom_bar], fontsize=20, loc="lower center", bbox_to_anchor=(0.5, 0.1))
         # ax.title(name, fontsize=14)
             
         plt.tight_layout()
