@@ -7,47 +7,31 @@ __email__ = "a.buch@stud.uni-heidelberg.de"
 
 
 import joblib
+from pathlib import Path
+
 
 from sklearn.preprocessing import MinMaxScaler
-from sklearn.ensemble import BaggingRegressor, BaggingClassifier, RandomForestClassifier, RandomForestRegressor
-from sklearn.linear_model import LogisticRegression, ElasticNet, SGDClassifier
+from sklearn.ensemble import BaggingRegressor, RandomForestClassifier, RandomForestRegressor
+from sklearn.linear_model import LogisticRegression, ElasticNet
 from xgboost import XGBRegressor
-
-
 from sklearn.pipeline import Pipeline
 
-import utils.settings as s
+import settings as s
 
-
-s.init()
 seed = s.seed
+
+OUTPATH_PIPES = Path(s.OUTPATH_UTILS, "pipelines")
+
 
 def main():
 
-
     ############ Logistic Regression ##########
-
     pipe_logreg = Pipeline( steps = [
         ('scaler', MinMaxScaler()), 
-        ('model', LogisticRegression(random_state=seed)) 
+        ('model', LogisticRegression(random_state=seed))
+        #, class_weight="balanced")) 
     ] )
 
-    # Logistic Regression with Bagging
-    ensemble_model = {
-        'model': BaggingClassifier,
-        #'kwargs': {'estimator': LogisticRegression()},
-        'kwargs': {'estimator': LogisticRegression(class_weight={0:0.40, 1:0.60})},
-        }
-    pipe_logreg_bag = Pipeline([
-        ('scaler', MinMaxScaler()),
-        ('bagging', ensemble_model['model'] (**ensemble_model['kwargs']) )
-    ])
-
-    ############  Stochastic Gradient Decent classifier  ##################
-    pipe_sgd = Pipeline( steps = [
-        ('scaler', MinMaxScaler()), 
-        ('model', SGDClassifier(loss='log_loss', random_state=seed)) # log_loss’ gives logistic regression, a probabilistic classifier.
-    ] )
 
     ############ Random Forest Classifier ##########
 
@@ -55,7 +39,8 @@ def main():
         ('scaler', MinMaxScaler()), 
         ('model', RandomForestClassifier(
             random_state=seed, 
-            class_weight={0:0.40, 1:0.60}  # 0.4 0.6
+            # class_weight="balanced"
+           class_weight={0:0.60, 1:0.40}  # 0.4 0.6
         ))
     ] )
 
@@ -101,35 +86,29 @@ def main():
 
     pipe_xgb = Pipeline(steps = [
         ('scaler', MinMaxScaler()), 
-        #('model', SelectFromModel(
-        #    XGBRegressor(random_state=seed),
-        #    max_features=10,
-        #)
         ('model', XGBRegressor(random_state=seed)),
     ])
 
 
     ###########  Conditional Random Forest ##############
-    pipe_crf = "cforest"
-    ## "pipe_crf" specifies CRF model from Rpackage
+    pipe_crf = "cforest"    ## "pipe_crf" specifies CRF model from Rpackage
 
 
 
-    joblib.dump(pipe_ref_model, './pipelines/pipe_ref_model.pkl')  # REFERENCE model
-
-    joblib.dump(pipe_rf, './pipelines/pipe_rf.pkl')     # CLASSIFICATION models
-
-    joblib.dump(pipe_logreg, './pipelines/pipe_logreg.pkl')
-    joblib.dump(pipe_logreg_bag, './pipelines/pipe_logreg_bag.pkl')
+    ## pkl file for models
     
-    joblib.dump(pipe_sgd, './pipelines/pipe_sgd.pkl')
+    # REFERENCE model
+    joblib.dump(pipe_ref_model, OUTPATH_PIPES /'pipe_ref_model.pkl')  
 
-    joblib.dump(pipe_en, './pipelines/pipe_en.pkl')     # REGRESSION models
-    joblib.dump(pipe_en_bag, './pipelines/pipe_en_bag.pkl')
-
-    joblib.dump(pipe_xgb, './pipelines/pipe_xgb.pkl')
-
-    joblib.dump(pipe_crf, './pipelines/pipe_crf.pkl')
+    # CLASSIFICATION models
+    joblib.dump(pipe_rf, OUTPATH_PIPES / 'pipe_rf.pkl')     
+    joblib.dump(pipe_logreg, OUTPATH_PIPES / 'pipe_logreg.pkl')
+    
+    # REGRESSION models
+    joblib.dump(pipe_en, OUTPATH_PIPES / 'pipe_en.pkl')     
+    joblib.dump(pipe_en_bag, OUTPATH_PIPES / 'pipe_en_bag.pkl')
+    joblib.dump(pipe_xgb, OUTPATH_PIPES / 'pipe_xgb.pkl')
+    joblib.dump(pipe_crf, OUTPATH_PIPES / 'pipe_crf.pkl')
 
 
 if __name__ == "__main__":

@@ -36,7 +36,7 @@ sys.path.insert(0, "../../")
 import utils.feature_selection as fs
 import utils.training as t
 import utils.evaluation as e
-import utils.evaluation_metrics as em
+import evaluation_utils as eu
 import utils.figures as f
 import utils.settings as s
 import utils.pipelines as p
@@ -454,4 +454,4 @@ plt.savefig(f"../models_evaluation/chance_of_loss/pdp_{target}.jpg", bbox_inches
 # Compare median and mean of predicted  vs observed target values
 for k,v in predicted_values.items():
     print(f"\n{k}")
-    print(em.empirical_vs_predicted(predicted_values[k]["y_true"], predicted_values[k]["y_pred"]))
+    print(eu.empirical_vs_predicted(predicted_values[k]["y_true"], predicted_values[k]["y_pred"]))

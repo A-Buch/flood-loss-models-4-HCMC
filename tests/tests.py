@@ -13,12 +13,27 @@ from scipy import stats
 
 sys.path.insert(0, "../")
 from utils.evaluation import ModelEvaluation
+import utils.evaluation_utils as eu
 import utils.settings as s
 
 
 
 # Get logger
-logger = s.init_logger('__test_calc_regression_coefficients__')
+logger = s.init_logger('__test_evaluation__')
+
+
+class TestBinaryModelEvaluation(unittest.TestCase):
+    """
+    test outputs from classlifcation task
+    """
+
+    def test_reverse_probability_scores():
+        df = pd.DataFrame({
+            "y_pred": [0.0, 0.0, 1.0, 1.0 , 0.0],
+            "y_proba": [0.90, 0.64, 0.64, 0.9 , 0.99],
+        })
+        assert eu.reverse_probability_scores(df)["y_proba"].to_list() == [0.1, 0.36, 0.64, 0.9, 0.01]
+
 
 
 class TestModelEvaluation(unittest.TestCase):
