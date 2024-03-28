@@ -17,7 +17,7 @@ from rpy2.robjects.packages import importr
 from rpy2.robjects import pandas2ri # pandas.DataFrames to R dataframes 
 from rpy2.robjects.conversion import localconverter
 
-import utils.settings as s
+import settings as s
 
 logger = s.init_logger("__feature_selection__")
 
@@ -196,7 +196,7 @@ def save_selected_features(X_train, y_train, selected_feat_cols, filename="fs_mo
 
     logger.info(f"total features: {X_train.shape[1]}")
     logger.info(f"dropped features: {len(not_selected_feat.columns)}")
-    logger.info(f"selected {len(selected_feat_cols)} features: \n{X_train[selected_feat_cols].columns.to_list()}\n")  # noqa: E501
+    logger.info(f"selected {len(selected_feat_cols)} features (might include further variables for plotting maps etc.): \n{X_train[selected_feat_cols].columns.to_list()}\n")  # noqa: E501
 
     ## write selected features from training set to disk
     train = pd.concat([y_train, X_train], axis=1)

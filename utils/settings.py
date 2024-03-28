@@ -10,11 +10,20 @@ __email__ = "a.buch@stud.uni-heidelberg.de"
 import os
 import logging
 import functools
-
+from pathlib import Path
 
 
 # global seed
 seed = 42   # use same seed for across all methods
+
+
+### define outpaths to store models, results and figures
+OUTPATH_BN = "../model_results/bayesian_network/"
+OUTPATH_FEATURES = "../model_results/selected_features/"
+OUTPATH_ESTIMATOR = "../models_trained/final_models/"
+# OUTPATH_FIGURES = Path("../figures_for_latex").mkdir(parents=True, exist_ok=True)
+OUTPATH_FIGURES = "../model_results/"
+OUTPATH_UTILS = "../utils/"
 
 # global color_palette_models  # color palettes for models 
 color_palette_models = {
@@ -31,6 +40,9 @@ color_palette_models = {
 
 ## nice feature names for the figures
 feature_names_plot = {
+    "Target_relative_contentloss_euro" : "rcloss",
+    "Target_contentloss_euro" : "closs",
+    "Target_businessreduction" : "rbred",
     "flowvelocity" : "flow velocity",
     "shp_employees": "no. employees",
     "water_depth_cm": "water depth inside",
@@ -76,7 +88,7 @@ def decorate_init_logger(func):
 def init_logger(name):
     """
     Set up a logger instance
-    Modified version from <christina.ludwig@uni-heidelberg.de> for SM2T project
+    Modified version based on code from <christina.ludwig@uni-heidelberg.de> for SM2T project
     name (str): Name of logger 
     log_file (str): path to log file
     """

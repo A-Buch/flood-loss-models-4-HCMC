@@ -204,7 +204,7 @@ class ModelEvaluation(object):
 
     def calc_residuals(self):
         """
-        Get and store observed, predicted target, residuals and for clasifications probabilities for each class
+        Get and store observed, predicted target (for clasification additional predicted probabilities), residuals (prediction -observation)
         prediction_method (str): predict (for regression) or predict_proba (for classification) 
         return: residuals
         """
@@ -214,7 +214,7 @@ class ModelEvaluation(object):
                 {
                     "y_true": self.y,
                     "y_pred": np.array(self.y_pred),
-                    "residuals": self.y - np.array(self.y_pred),
+                    "residual": self.y_pred - np.array(self.y),
                 },
                 index=self.y.index,
             )
@@ -225,7 +225,7 @@ class ModelEvaluation(object):
                     "y_true": self.y,
                     "y_pred": np.array(self.y_pred),
                     "y_proba": np.array(self.y_proba),
-                    "residuals": self.y - np.array(self.y_pred),
+                    "residual": self.y - np.array(self.y_pred),
                 },
                 index=self.y.index,
             )       
@@ -293,17 +293,19 @@ class ModelEvaluation(object):
 
 
 
-    def permutation_feature_importance(self, final_model, repeats=10):
+    def permutation_feature_importance(self, final_model, X_test, y_test, repeats=10):
     #def permutation_feature_importance(model, X_test, y_test, y_pred, criterion= r2_score):
         """
-        Calculate permutation based feature importance , the importance scores represents the increase in model error
-        final_model : final sklearn model       
+        Calculate permutation based feature importance, the importance scores represents the increase in model error
+        final_model : final sklearn model       f
         return: pd DataFrame with averaged importance scores
         """
         permutation_fi = permutation_importance(
             final_model, 
-            self.X, self.y, 
-            n_repeats=repeats, random_state=self.seed
+            X_test, y_test, 
+            n_repeats=repeats, 
+            scoring="neg_mean_absolute_error",
+            random_state=self.seed
         )
 
         return permutation_fi.importances_mean, permutation_fi.importances_std, permutation_fi.importances
@@ -311,6 +313,7 @@ class ModelEvaluation(object):
 
     def r_permutation_feature_importance(self, final_model):
         """  
+        Get conditional permutation feature importance based, the importance scores represents the increase in model error
         final_model: final R model
         return importance scores and standard deviations in R dataframe format
         """ 

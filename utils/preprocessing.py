@@ -14,18 +14,16 @@ import json
 from dataclasses import dataclass
 import difflib
 
-import utils.settings as s
+import settings as s
 logger = s.init_logger("__preprocessing__")
 
 
 
 def load_config(config_file:str):
     """
-    Load config file
-    :param config_file: path to config file (str)
-    :return:
+    Load e.g. hyperparameter files
     """
-    assert os.path.exists(config_file), f"Configuration file does not exist: {os.path.abspath(config_file)}"
+    assert os.path.exists(config_file), f"Could not find file: {os.path.abspath(config_file)}"
     with open(config_file, "r") as src:
         config = json.load(src)
     return config
@@ -99,7 +97,7 @@ class FuzzyMerge:
         ]
         return self.left.merge(df, on=self.left_on, how=self.how) # noqa: E501
 
-    def get_closest_match(self, left: pd.Series, right: pd.Series, cutoff=0.9) -> str or None:  # noqa: E501
+    def get_closest_match(self, left: pd.Series, right: pd.Series, cutoff=cutoff) -> str or None:  # noqa: E501
         #matches = difflib.get_close_matches(left, right, n=self.n, cutoff=self.cutoff)
         matches = difflib.get_close_matches(left, right, n=self.n, cutoff=cutoff)
 

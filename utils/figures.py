@@ -32,38 +32,38 @@ logger = s.init_logger("__figures__") # TODO impl in the rest of the functions
 
 
 
-def plot_spearman_rank(df_corr, min_periods=100, signif=True, psig=0.05):
-        """
-        ## Code snippet modified: https://stackoverflow.com/questions/69900363/colour-statistically-non-significant-values-in-seaborn-heatmap-with-a-different
+def plot_spearman_rank(df_corr, min_periods=100, signif=True, psig=0.05, target=None):
+    """
+    ## Code snippet modified: https://stackoverflow.com/questions/69900363/colour-statistically-non-significant-values-in-seaborn-heatmap-with-a-different
 
-        df_corr (dataframe): dataframe with variables to plot
-        min_periods (int): Minimum number of observations required per pair of columns to have a valid result
-        signif (boolean): should non significant be masked
-        psig (float): signifcance level
-        return: Figure for Pearson Correlation 
-        """ 
- 
-        ## get the p value for pearson coefficient, subtract 1 on the diagonal
-        pvals = df_corr.corr(
-            method=lambda x, y: stats.spearmanr(x, y)[1], min_periods=min_periods
-            ) - np.eye(*df_corr.corr(method="spearman", min_periods=min_periods).shape)  # np.eye(): diagonal= ones, elsewere=zeros
+    df_corr (dataframe): dataframe with variables to plot
+    min_periods (int): Minimum number of observations required per pair of columns to have a valid result
+    signif (boolean): should non significant be masked
+    psig (float): signifcance level
+    return: Figure for Pearson Correlation 
+    """ 
+    ## get the p value for spearman coefficient, subtract 1 on the diagonal
+    pvals = df_corr.corr(
+        method=lambda x, y: stats.spearmanr(x, y)[1], min_periods=min_periods
+        ) - np.eye(*df_corr.corr(method="spearman", min_periods=min_periods).shape)  # np.eye(): diagonal= ones, elsewere=zeros
 
-        #  main plot
-        sns.heatmap(
-            df_corr.corr(method="spearman", min_periods=min_periods), 
-            annot=False, square=True, 
-            center=0, cmap="RdBu", 
-            fmt=".2f", zorder=1,
-        )
+    #  main plot
+    sns.heatmap(
+        df_corr.corr(method="spearman", min_periods=min_periods), 
+        annot=True, square=True, 
+        center=0, cmap="RdBu", 
+        fmt=".2f", zorder=1,
+        annot_kws={'size': 10})
+    plt.title(f"Spearman's rank correlation: {target}", fontsize=16)
 
-        # signifcance mask
-        if signif:
-                ## add another heatmap with colouring the non-significant cells
-                sns.heatmap(df_corr.corr(method="spearman", min_periods=min_periods)[pvals>=psig], 
-                            annot=False, square=True, cbar=False,
-                            ## add-ons
-                            cmap=sns.color_palette("Greys", n_colors=1, desat=1),  
-                            zorder = 2) # put the map above the heatmap
+    # signifcance mask
+    if signif:
+        ## add another heatmap with colouring the non-significant cells
+        sns.heatmap(df_corr.corr(method="spearman", min_periods=min_periods)[pvals>=psig], 
+            annot=False, square=True, cbar=False,
+            ## add-ons
+            cmap=sns.color_palette("Greys", n_colors=1, desat=1),  
+            zorder = 2) # put the map above the heatmap
         ## add a label for the colour
         colors = [sns.color_palette("Greys", n_colors=1, desat=1)[0]]
         texts = [f"not significant (at {psig})"]
@@ -71,12 +71,15 @@ def plot_spearman_rank(df_corr, min_periods=100, signif=True, psig=0.05):
         plt.legend(handles=patches, bbox_to_anchor=(.85, 1.05), loc='center')
 
 
+
+
 def corrdot(*args, **kwargs):
     corr_r = args[0].corr(args[1], method="spearman", min_periods=100)
     #corr_r = args[0].corr(args[1], 'pearson')
     corr_text = round(corr_r, 2)
     ax = plt.gca()
-    font_size = abs(corr_r) * 80 + 5
+    # font_size = abs(corr_r) * 80 + 5
+    font_size = 26 # make fontsize readable
     ax.annotate(corr_text, [.5, .5,],  xycoords="axes fraction",
                 ha='center', va='center', fontsize=font_size)
 
@@ -96,7 +99,7 @@ def corrfunc(x, y, **kws):
 
 
 
-def plot_correlations(df, outfile=None, impute_na=True):
+def plot_correlations(df, outfile=None, impute_na=False):
     """
     Correlations visualized by Scatterplots, significance and freuqnecy plots between all variables
     df : pd.DataFrame
@@ -261,7 +264,7 @@ def plot_r_learning_curve(eval_set, target_name, outfile, r_model_name="cforest"
 def plot_stacked_feature_importances(df_feature_importances, target_name, model_names_plot, outfile):
     """
     Stack feature importances of multiple models into one barchart
-    df_feature_importances : pd.DatFrame with columns which contain feature importances to plot
+    df_feature_importances : pd.DataFrame with columns which contain feature importances to plot
     """
     model_name_1, model_name_2 , model_name_3 = model_names_plot # TODO update with s.color_palette_models from settings
 
@@ -280,7 +283,7 @@ def plot_stacked_feature_importances(df_feature_importances, target_name, model_
     )
     plt.xlabel("Importance")
     plt.ylabel("")
-    plt.title(f"Feature Importances for {target_name.replace('_',' ')}", fontweight="bold", fontsize=16)
+    plt.title(f"Feature importances for {target_name.replace('_',' ')}", fontweight="bold", fontsize=16)
 
     ## legend
     top_bar = mpatches.Patch(color="steelblue", label=model_name_1, alpha=.7)  #TODO update with s.color_palette_models from settings
@@ -298,7 +301,7 @@ def plot_stacked_feature_importances(df_feature_importances, target_name, model_
 
 def plot_partial_dependence(df_pd_feature, feature_name:str, partial_dependence_name:str, categorical:list, outfile, **kwargs):
     """
-    Creates plots for partial dependecies for multiple models
+    Creates plots for partial dependencies for multiple models
     :param df_pd_feature: df_pd_feature
     :param feature_name: name of feature (x-axis)
     :param partial_dependence_name: name of target (y-axis)
@@ -345,7 +348,7 @@ def plot_partial_dependence(df_pd_feature, feature_name:str, partial_dependence_
     
 
 
-def plot_observed_predicted(y_true, y_pred, hue, hue_colors=("darkgrey","steelblue"), xlabel="observed", ylabel="predicted", alpha=0.6, legend=False, outfile="test.png"):
+def plot_observed_predicted(y_true, y_pred, hue=None, hue_colors=("darkgrey","steelblue"), xlabel="observed", ylabel="predicted", alpha=0.6, legend=False, outfile="test.png"):
     """
     Scatter plot of observations vs predictions with optional class colors
     NOTE: hue is currently limited to binary cases
@@ -358,7 +361,9 @@ def plot_observed_predicted(y_true, y_pred, hue, hue_colors=("darkgrey","steelbl
         0: to_rgba(hue_colors[0], alpha), # set transparency for each class independently
         1: to_rgba(hue_colors[1], alpha)
     }
-    
+    if hue is None:
+        color_dict = color_dict[1]
+
     g = sns.JointGrid(
         x=y_true, y=y_pred, hue=hue,
         height=5, space=0,)
@@ -389,6 +394,7 @@ def plot_observed_predicted(y_true, y_pred, hue, hue_colors=("darkgrey","steelbl
     g.ax_joint.plot(lims, lims, c= "black", lw=.5,) # equal line
     g.set_axis_labels(xlabel=xlabel, ylabel=ylabel)
 
+    # plt.title(f"Observed and predicted {target}")
     # save plot
     plt.savefig( outfile, dpi=300, bbox_inches="tight")
 
@@ -544,6 +550,7 @@ def boxplot_outer_scores_ncv(models_scores, outfile, target_name):
 
 
 def plot_boxplot_scatterplot(df, group, column, scatterpoints):
+     # TODO generalize function , eg. xlabel 
     """
     """
     all_input_p = df

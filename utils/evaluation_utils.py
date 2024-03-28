@@ -32,13 +32,18 @@ def symmetric_mean_absolute_percentage_error(y_true, y_pred):
     return 100/len(y_true) * np.sum(np.abs(y_pred - y_true) / (np.abs(y_pred) + np.abs(y_true)) ) 
     # return 100/len(y_true) * np.sum(np.abs(y_true - y_pred) / (np.abs(y_true) + np.abs(y_pred)) ) 
 
+
 def root_mean_squared_error(y_true, y_pred):
     """" Calculate RMSE from predicted and actual target  """
     # (np.mean((y_pred-y)**2))**(1/2)
     return  np.sqrt( np.mean(( y_pred - y_true)**2) )
    
 
- 
+def coef_variation(x):
+    """coefficient of variation"""
+    return np.std(x, ddof=1) / np.mean(x) * 100 
+
+
 def empirical_vs_predicted(y_true, y_pred):
     """
     return (pd.DataFrame): with statistics of predicted and observed target values
@@ -47,8 +52,7 @@ def empirical_vs_predicted(y_true, y_pred):
 
     for y_set in [y_true.astype(int), y_pred.astype(int)]:
         test_statistics = stats.describe(np.array(y_set))
-        ## coef. of variation
-        coef_variation = lambda x: np.std(x, ddof=1) / np.mean(x) * 100 
+
         
         empirical_vs_predicted.append(
             pd.Series({
@@ -58,7 +62,7 @@ def empirical_vs_predicted(y_true, y_pred):
                 "min max":  [test_statistics[1][0], test_statistics[1][1]],
                 "variance": round(test_statistics[3], 2),
                 "standard deviation": round(np.std(y_set), 2),
-                "coef variation": pd.DataFrame(y_set).apply(coef_variation)[0],
+                "coef. of variation": pd.DataFrame(y_set).apply(coef_variation)[0],
             })
         )
     return pd.DataFrame(empirical_vs_predicted, index=(["empirical", "predicted"]))

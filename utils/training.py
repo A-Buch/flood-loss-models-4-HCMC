@@ -9,15 +9,11 @@ import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import RandomizedSearchCV
 
-import utils.feature_selection as fs
-#from utils.evaluation import ModelEvaluation
-import utils.settings as s
+import settings as s
 
 import rpy2.robjects as robjects
 from rpy2.robjects.packages import importr
-from rpy2.robjects import Formula
 
-s.init()
 seed = s.seed
 logger = s.init_logger("__model_training__")
 
@@ -108,7 +104,7 @@ class ModelFitting(object):
                 self.param_space["mtry"][1], 
                 self.param_space["mtry"][2]
             ), 
-            pass_outer_folds=True,  # =False - otherwise repeated inner Folds not possible, =True -use same outer fold to build finalModel
+            # pass_outer_folds=True,  # =False - otherwise repeations of inner Folds not possible, =True -use same outer fold to build finalModel
             # =True find final model based on CV on outer folds, same folds and no repeats used for model evaluation
             savePredictions="final",  # mandatory to call to get final model (best estimator from outer folds) via $final_fit
             metric='MAE',
