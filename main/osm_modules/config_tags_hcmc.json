@@ -1,0 +1,38 @@
+{
+  "get_all_info": [
+    {
+      "tags": {
+        "building": ["residential", "house", "apartments", "detached", "commercial", "industrial", "kiosk", "retail"],
+        "amenity": ["pharmacy", "bar", "cafe", "fast_food", "restaurant", "commercial"],
+        "landuse": ["retail", "commercial"]
+      },
+    "name": "ohsome_commercial"
+    }
+  ], 
+ "get_commerce_info": [
+    {
+      "tags": {
+        "shop": "*",
+        "building": ["commercial", "industrial", "kiosk", "retail"],
+        "amenity": ["pharmacy", "bar", "cafe", "fast_food", "restaurant", "commercial"]
+      },
+    "name": "ohsome_commerce"
+    }
+  ],
+  "get_residential_info": [
+    {
+      "tags": {
+        "building": ["residential", "house", "apartments", "detached"]
+      },
+    "name": "ohsome_residential"
+    }
+  ],
+ "get_buildingheight_info": [
+    {
+      "tags": {
+        "building": ["height","building:levels"]
+      },
+    "name": "ohsome_buildingheight"
+    }
+  ]
+}
