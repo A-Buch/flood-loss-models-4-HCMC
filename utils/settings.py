@@ -18,12 +18,12 @@ seed = 42   # use same seed for across all methods
 
 
 ### define outpaths to store models, results and figures
-OUTPATH_BN = "../model_results/bayesian_network/"
-OUTPATH_FEATURES = "../model_results/selected_features/"
-OUTPATH_ESTIMATOR = "../models_trained/final_models/"
+OUTPATH_BN = "./model_results/bayesian_network/"
+OUTPATH_FEATURES = "./model_results/selected_features/"
+OUTPATH_ESTIMATOR = "./models_trained/final_models/"
 # OUTPATH_FIGURES = Path("../figures_for_latex").mkdir(parents=True, exist_ok=True)
-OUTPATH_FIGURES = "../model_results/"
-OUTPATH_UTILS = "../utils/"
+OUTPATH_FIGURES = "./model_results/"
+OUTPATH_UTILS = "./utils/"
 
 # global color_palette_models  # color palettes for models 
 color_palette_models = {
@@ -75,7 +75,7 @@ def decorate_init_logger(func):
         log_file = "./tst_warning_coeff.log"
         print(f"Creating log file {log_file} due to warning that regression coefficients are all non significant")
         # os.path.exists(os.path.dirname(log_file))
-        if not os.path.exists(log_file):             
+        if not os.path.exists(log_file):
             open(log_file, "w+").close()
 
         return logger
