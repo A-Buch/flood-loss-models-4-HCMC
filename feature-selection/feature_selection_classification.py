@@ -9,48 +9,33 @@ __email__ = "a.buch@stud.uni-heidelberg.de"
 
 # Due to many zero losses especially in content losses, a binary regression was tested to distinguish between occured losses and no losses. 
 # The before applied elastic net result showed that the elastic net algorithm might be a bit too complex for the moderate size of training set 
-# and the imbalnced distribution with in the response (many zero losses compared to only a very a left skewed distribution of occured content losses)  
+# and the imbalanced distribution with in the response (many zero losses compared to only a very a left skewed distribution of occured content losses)  
 # *Sources*
 # Geron 2019: https://learning.oreilly.com/library/view/hands-on-machine-learning/9781492032632/ch04.html#idm45022190228392
 
 
 import os, sys
+from pathlib import Path
+import joblib
 import re
 from datetime import datetime
-from pathlib import Path
 import numpy as np
 import pandas as pd
-import geopandas as gpd
 
-import pickle
-import joblib
-
-from sklearn.linear_model import LinearRegression
-from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import RepeatedStratifiedKFold, cross_val_score
-from sklearn.metrics import confusion_matrix, classification_report, precision_score, accuracy_score, make_scorer
-
-import statsmodels.api as sm
-from scipy import stats
+from sklearn.metrics import classification_report, precision_score, make_scorer
 
 import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
-import seaborn as sns
 
 
-UTILS_PATH = os.path.join(os.path.abspath(''), '../../', 'utils')
+UTILS_PATH = os.path.join(os.path.abspath(''), '../', 'utils')
 sys.path.append(UTILS_PATH)
-
-import feature_selection as fs
 import training as t
 import evaluation as e
 import evaluation_utils as eu
-import figures as f
 import settings as s
-import pipelines as p
 import preprocessing as pp
 
-p.main()  # create/update model settings
 seed = s.seed
 
 import contextlib
@@ -66,50 +51,47 @@ kfolds_and_repeats = 10, 5 # 10, 3 # 10, 5  # <k-folds, repeats> for nested cv
 inner_cv = RepeatedStratifiedKFold(n_splits=kfolds_and_repeats[0], n_repeats=kfolds_and_repeats[1], random_state=seed)
 outer_cv = RepeatedStratifiedKFold(n_splits=kfolds_and_repeats[0], n_repeats=1, random_state=seed)
 
-# ## make new base results-folder
-hcmc_cantho = "hcmc" # "hcmc", "cantho"
 
-## TODO make base outdir ./model_results/chance_of_loss
 ## save models and their evaluation in following folders:
-Path(f"../../model_results/models_trained/chance_of_loss/nested_cv_models").mkdir(parents=True, exist_ok=True)
-Path(f"../../model_results/models_trained/chance_of_loss/final_models").mkdir(parents=True, exist_ok=True)
-Path(f"../../model_results/models_evaluation/chance_of_loss").mkdir(parents=True, exist_ok=True)
-Path(f"../../model_results/selected_features/chance_of_loss").mkdir(parents=True, exist_ok=True)
-
+INPATH_DATA = Path(s.INPATH_DATA) # input path
+OUTPATH_FEATURES, OUTPATH_FINALMODELS, OUTPATH_ESTIMATORS_NCV, OUTPATH_RESULTS = [ # create output paths
+    pp.create_output_dir(Path(d) / "chance_of_rcloss") for d in  
+    [s.OUTPATH_FEATURES, s.OUTPATH_FINALMODELS, s.OUTPATH_ESTIMATORS_NCV, s.OUTPATH_EVAL]
+]
+print(OUTPATH_FEATURES, OUTPATH_FINALMODELS, OUTPATH_ESTIMATORS_NCV, OUTPATH_RESULTS)
 
 
 targets = [("chance of rcloss", "chance of rcloss")]
 target, target_plot = targets[0]
 pred_target = f"pred_{target}"
 
+# Get logger  # test: init application
+main_logger = "__feature_extraction_chance__"
+logger = s.init_logger(main_logger)
+
 
 ## load DS for relative content loss
-df_candidates = pd.read_excel("../../input_survey_data/input_data_contentloss_tueb.xlsx")
-
+df_candidates = pd.read_excel(f"{INPATH_DATA}/input_data_contentloss_tueb.xlsx")
 # change target name for component for rclsos "degree of rcloss" in  s.feature_names_plot 
 s.feature_names_plot["Target_relative_contentloss_euro"]  = "chance of rcloss"
-
-
 ##  use nice feature names
 df_candidates.rename(columns=s.feature_names_plot, inplace=True)
-df_candidates.describe()
+
+## test drop flow velocity due to diffenret flooding sources (eg. overwhelmed draingage systems)
+# df_candidates = df_candidates.drop("flowvelocity", axis=1)
+logger.info("Variables from input DS", df_candidates.describe())
 
 
-# Variables for average classification report
+# Variables for average classification report  # TODO move to utils functions
 originalclass = []
 predictedclass = []
-
 def custom_scorer(y_true, y_pred):
     originalclass.extend(y_true)
     predictedclass.extend(y_pred)
     return precision_score(y_true, y_pred) # return precision score
     #return accuracy_score(y_true, y_pred)
 
-print(df_candidates.shape)
-
-
-## Fit model
-
+## Evaluation metrics
 score_metrics = {
     "accuracy": "accuracy",
     "precision": "precision",
@@ -118,16 +100,15 @@ score_metrics = {
     # "f1": "f1",
 }
 
-## test drop flow velocity due to diffenret flooding sources (eg. overwhelmed draingage systems)
-# df_candidates = df_candidates.drop("flowvelocity", axis=1)
-print(df_candidates.columns)
+## Load set of hyperparamters
+hyperparams_set = pp.load_config(f"{UTILS_PATH}/hyperparameter_sets.json")
 
 ## iterate over piplines. Each pipline contains a scaler and regressor (and optionally a bagging method) 
-
-#pipelines = ["pipe_logreg_bag"]
 pipelines = ["pipe_logreg"]
 # pipelines = ["pipe_sgd"] # with logreg loss and en penality
 
+
+## empty variables to store model outputs
 eval_sets = {}
 models_trained = {}
 final_models_trained = {}
@@ -136,17 +117,12 @@ predicted_values = {}
 df_feature_importances = pd.DataFrame(index=df_candidates.drop(target, axis=1).columns.to_list())
 models_scores = {}
 
-## Load set of hyperparamters
-hyperparams_set = pp.load_config("../../utils/hyperparameter_sets.json")
-print(hyperparams_set)
-
-
 for pipe_name in pipelines:
 
     TIME0 = datetime.now()
 
     ## load model pipeline and get model name
-    pipe = joblib.load(f'./pipelines/{pipe_name}.pkl')
+    pipe = joblib.load(f"{UTILS_PATH}/pipelines/{pipe_name}.pkl")
 
 
     try:
@@ -250,7 +226,6 @@ for pipe_name in pipelines:
             models_trained_ncv=models_trained_ncv, 
             Xy=df_Xy,
             target_name=target,
-            #score_metrics={"precision": make_scorer(custom_scorer)} ,
             score_metrics=score_metrics,
             cv=outer_cv,
             kfolds=kfolds_and_repeats[0],
@@ -287,11 +262,7 @@ for pipe_name in pipelines:
         ## Final model
 
         ## get final model based on best MAE score during outer cv
-        # best_idx = list(models_scores[model_name]["test_f1"]).index(max(models_scores[model_name]["test_f1"]))
         best_idx = list(models_scores[model_name]["test_f1_macro"]).index(max(models_scores[model_name]["test_f1_macro"]))
-        # best_idx = list(models_scores[model_name]["test_precision"]).index(max(models_scores[model_name]["test_precision"]))
-        # best_idx = list(models_scores[model_name]["test_recall"]).index(max(models_scores[model_name]["test_recall"]))
-        # best_idx = list(models_scores[model_name]["test_accuracy"]).index(max(models_scores[model_name]["test_accuracy"]))
         final_model = model_evaluation_results["estimator"][best_idx]
         print("used params for best model:", final_model.best_params_)
         final_model = final_model.best_estimator_
@@ -311,7 +282,7 @@ for pipe_name in pipelines:
         )
         finalmodel_y_proba = finalmodel_y_proba.flatten()
         final_models_trained[model_name] = final_model 
-        joblib.dump(final_model, f"../../model_results/models_trained/chance_of_loss/final_models/{model_name}_{target}.joblib")
+        joblib.dump(final_model, f"{OUTPATH_FINALMODELS}/{model_name}_{target}.joblib")
 
         ## Feature importance of best model
         importances = me.permutation_feature_importance(  # acces predction error via MAE cirterion
@@ -322,7 +293,7 @@ for pipe_name in pipelines:
         ## regression coefficients for linear models
         with contextlib.suppress(Exception):
             models_coef[model_name] = me.calc_regression_coefficients(final_model, finalmodel_y_true, finalmodel_y_pred)
-            outfile = f"../../model_results/models_evaluation/chance_of_loss/regression_coefficients_{model_name}_{target}.xlsx"
+            outfile = f"{OUTPATH_RESULTS}/regression_coefficients_{model_name}_{target}.xlsx"
             models_coef[model_name].round(3).to_excel(outfile, index=True)
             print("Regression Coefficients:\n", models_coef[model_name].sort_values("probabilities", ascending=False), f"\n.. saved to {outfile}")
             
@@ -333,8 +304,6 @@ for pipe_name in pipelines:
                 logger.warning("non of the regression coefficients is significant")
 
 
-    # filename = f'../model_results/models_trained_ncv/{model_name}_{target}.sav'
-    # pickle.dump(model, open(filename, 'wb'))
     eval_sets[model_name] = df_Xy
     models_trained[f"{model_name}"] = models_trained_ncv
 
@@ -345,7 +314,7 @@ for pipe_name in pipelines:
     ## NOTE preserve index from loaded input dataset, 
     ## use predicted probabilities of loss as input for the estimation of relative content loss
     print(predicted_values[model_name].describe())
-    predicted_values[model_name].to_excel(f"../../model_results/selected_features/chance_of_loss/predictions_{target.replace(' ', '_')}.xlsx", index=True)
+    predicted_values[model_name].to_excel(f"{OUTPATH_FEATURES}/predictions_{target.replace(' ', '_')}.xlsx", index=True)
 
     ## Feature importance
     print("\nSelect features based on permutation feature importance")
@@ -378,7 +347,7 @@ model_evaluation.columns = [f"{model_name}_score", f"{model_name}_score_std"]
 
 model_evaluation.index = model_evaluation.index.str.replace("test_", "")
 
-outfile = f"../../model_results/models_evaluation/chance_of_loss/performance_{target}.xlsx"
+outfile = f"{OUTPATH_RESULTS}/performance_{target}.xlsx"
 model_evaluation.round(3).to_excel(outfile, index=True)
 print("Outer evaluation scores:\n", model_evaluation.round(4), f"\n.. saved to {outfile}")
 
