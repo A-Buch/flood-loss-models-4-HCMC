@@ -9,7 +9,7 @@ __email__ = "a.buch@stud.uni-heidelberg.de"
 
 # Due to many zero losses especially in content losses, a binary regression was tested to distinguish between occured losses and no losses. 
 # The before applied elastic net result showed that the elastic net algorithm might be a bit too complex for the moderate size of training set 
-# and the imbalaanced distribution with in the response (many zero losses compared to only a very a left skewed distribution of occured content losses)  
+# and the imbalanced distribution with in the response (many zero losses compared to only a very a left skewed distribution of occured content losses)  
 # *Sources*
 # Geron 2019: https://learning.oreilly.com/library/view/hands-on-machine-learning/9781492032632/ch04.html#idm45022190228392
 
