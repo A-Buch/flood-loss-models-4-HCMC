@@ -297,7 +297,7 @@ def plot_stacked_feature_importances(df_feature_importances, target_name, model_
     fig.get_figure().savefig(outfile, dpi=300, bbox_inches="tight")
     plt.close()
 
-    
+
 
 def plot_partial_dependence(df_pd_feature, feature_name:str, partial_dependence_name:str, categorical:list, outfile, **kwargs):
     """
@@ -325,11 +325,6 @@ def plot_partial_dependence(df_pd_feature, feature_name:str, partial_dependence_
             **kwargs
         )
 
-    #kwargs["ax"].get_xaxis().set_visible(False)
-    kwargs["ax"].set_xlabel(feature_name)
-    kwargs["ax"].set_ylabel("")
-    # ax.get_yaxis().set_visible(True)
-
     kwargs["ax"].tick_params(
         axis='x',          # changes apply to the x-axis
         which='both',      # both major and minor ticks are affected
@@ -343,9 +338,10 @@ def plot_partial_dependence(df_pd_feature, feature_name:str, partial_dependence_
         left='on',
         right=False,
     )
+    
     plt.tight_layout()
     plt.savefig(outfile, dpi=300, bbox_inches="tight")
-    
+   
 
 
 def plot_observed_predicted(y_true, y_pred, hue=None, hue_colors=("darkgrey","steelblue"), xlabel="observed", ylabel="predicted", alpha=0.6, legend=False, outfile="test.png"):
