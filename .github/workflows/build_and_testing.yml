@@ -1,0 +1,66 @@
+name: Build and Testing
+
+on:
+  # Run CI on pushes to all fix- and develop-branches, 
+  # and on only pull requests to the main branch
+  push:
+    branches:
+    - "**" # matches every branch
+    - "!main" # except main
+  pull_request:
+    branches:
+    - main
+
+# define jobs [build_and_test, coverage]
+jobs:
+
+  build_and_test:
+    strategy:
+      #fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        python-version:
+        # todo: test further newewr python versions
+            - 3.9.6
+    runs-on: ${{ matrix.os }}
+    name: Testing in python "${{matrix.python-version}}", runs on "${{matrix.os}}" # each job needs a name - mandatory
+
+# define steps of job "build_and_test"
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    - name: Set up Python ${{ matrix.python-version }} with pip
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+        cache: 'pip' # caching pip dependencies
+        cache-dependency-path: ./requirements.txt
+    # TODO: load packages via setup.cfg, instead of requirements.txt.
+    # Need to update ./config/environment.yml with packages from poetry env
+    -  run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        echo installed packages via pip
+
+  coverage:
+    name: Coverage Testing
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install Python packages with pip
+      run: |
+        pip install poetry
+        poetry install
+        echo installed packages via poetry
+    - name: Run Python tests [unittest]
+      working-directory: ./tests
+      run: |
+        pip install pytest unittest
+        python -m unittest ./test*.py
+        echo checking for test errors from ./tests/test*.py

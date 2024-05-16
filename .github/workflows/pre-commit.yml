@@ -1,0 +1,20 @@
+name: pre-commit (linter, formatter)
+on: [ push, pull_request ]
+jobs:
+  pre-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - uses: pre-commit/action@v3.0.1
+      - name: Setup pre-commit
+        # Don't need "pre-commit install --install-hooks" since we're just interested in running the hooks.
+        run: |
+          pre-commit install-hooks
+
+      - name: Run pre-commit only on files which have changed
+        run: |
+          pre-commit run
+
+          # TODO: pre-commit run only on files which have changed, currently runs on all files
+          # pre-commit run --origin HEAD --source origin/HEAD

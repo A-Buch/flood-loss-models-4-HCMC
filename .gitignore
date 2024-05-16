@@ -30,6 +30,13 @@ osm_modules/*.geojson
 bayesian-network/*.pdf
 bayesian-network/*.png
 
+# notebooks, except certain for BN and data preprocessing
+*.ipynb
+!bayesian-network/*.ipynb
+!explorative-data-analysis/*.ipynb
+!data-preprocessing/*.ipynb
+
+
 # R files (used to implement cforest R package in python)
 *.sav
 *.Rdata
