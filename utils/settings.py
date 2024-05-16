@@ -10,20 +10,24 @@ __email__ = "a.buch@stud.uni-heidelberg.de"
 import os
 import logging
 import functools
-from pathlib import Path
 
 
 # global seed
 seed = 42   # use same seed for across all methods
 
-
-### define outpaths to store models, results and figures
-OUTPATH_BN = "./model_results/bayesian_network/"
-OUTPATH_FEATURES = "./model_results/selected_features/"
-OUTPATH_ESTIMATOR = "./models_trained/final_models/"
-# OUTPATH_FIGURES = Path("../figures_for_latex").mkdir(parents=True, exist_ok=True)
-OUTPATH_FIGURES = "./model_results/"
-OUTPATH_UTILS = "./utils/"
+# define input data paths
+INPATH_DATA = "../../input_survey_data/"
+# src / utils paths
+# OUTPATH_UTILS = "../utils"
+# define paths for model configurations and trained models [pickle, joblib]
+OUTPATH_PIPES = "../utils/pipelines"
+# OUTPATH_PIPES = f"./{OUTPATH_UTILS}/pipelines"
+OUTPATH_FINALMODELS = "../../models_trained/final_models/"
+OUTPATH_ESTIMATORS_NCV = "../../models_trained/nested_cv_models/"
+# define outpath results [figures, excel files]
+OUTPATH_BN = "../../model_results/bayesian_network/"
+OUTPATH_FEATURES = "../../model_results/selected_features/"
+OUTPATH_EVAL = "../../model_results/models_evaluation/"  # figures of model performance and evaluation
 
 # global color_palette_models  # color palettes for models 
 color_palette_models = {
@@ -72,7 +76,7 @@ def decorate_init_logger(func):
         logger = func(*args)
 
         # Log file handler
-        log_file = "./tst_warning_coeff.log"
+        log_file = "./warning_regression_coeffcient.log"
         print(f"Creating log file {log_file} due to warning that regression coefficients are all non significant")
         # os.path.exists(os.path.dirname(log_file))
         if not os.path.exists(log_file):

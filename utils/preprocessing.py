@@ -19,6 +19,18 @@ logger = s.init_logger("__preprocessing__")
 
 
 
+
+def create_output_dir(output_dir):
+    """
+    Create path to store outputs as pathlib objects
+    return: string of created new output path (relative to cwd) 
+    """
+    print("Created ", output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    return os.path.relpath(output_dir)
+
+
+
 def load_config(config_file:str):
     """
     Load e.g. hyperparameter files
@@ -74,11 +86,12 @@ def percentage_of_nan(df):
     )
 
 
-@dataclass(frozen=False)  # make annoutations such as "cutoff" mutable
+@dataclass(frozen=False)  # frozen=False : make annoutations such as "cutoff" mutable
 class FuzzyMerge:
     """
-        Works like pandas merge except also merges on approximate matches. dataclass is a class mainly to store data
-        modified from: https://stackoverflow.com/questions/74778263/python-merge-two-dataframe-based-on-text-similarity-of-their-columns
+        Works like pandas merge except also merges on approximate matches. 
+        Dataclass is a class mainly to store data, unlike than a normal Class
+        modified bassed on: https://stackoverflow.com/questions/74778263/python-merge-two-dataframe-based-on-text-similarity-of-their-columns
     """
     left: pd.DataFrame
     right: pd.DataFrame

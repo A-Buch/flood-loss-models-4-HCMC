@@ -9,11 +9,13 @@ __pycache__/
 .ruff_cache/
 
 # logs
+*.log
 log/
 ohsome_log/
 
-# models config
+# models config and trained models
 *.pkl
+*.joblib
 
 # exclude data files and folders, except for the test data
 input_survey_data/
