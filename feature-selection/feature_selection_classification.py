@@ -71,7 +71,7 @@ logger = s.init_logger(main_logger)
 
 
 ## load DS for relative content loss
-df_candidates = pd.read_excel(f"{INPATH_DATA}/input_data_businessreduction_tueb.xlsx")
+df_candidates = pd.read_excel(f"{INPATH_DATA}/input_data_contentloss_tueb.xlsx")
 # change target name for component for rclsos "degree of rcloss" in  s.feature_names_plot 
 s.feature_names_plot["Target_relative_contentloss_euro"]  = "chance of rcloss"
 ##  use nice feature names
