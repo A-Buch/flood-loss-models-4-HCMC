@@ -18,10 +18,10 @@ jobs:
     strategy:
       #fail-fast: false
       matrix:
-        os: [ubuntu-latest]
+        os: [windows-latest]
         python-version:
         # todo: test further newewr python versions
-            - 3.9.6
+            - 3.9
     runs-on: ${{ matrix.os }}
     name: Testing in python "${{matrix.python-version}}", runs on "${{matrix.os}}" # each job needs a name - mandatory
 
@@ -44,7 +44,7 @@ jobs:
 
   coverage:
     name: Coverage Testing
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
 
     steps:
     - name: Checkout repository
