@@ -32,7 +32,3 @@ line-length = 150  # Same as Black
 
 
 
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
-
