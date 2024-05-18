@@ -8,12 +8,15 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 
-# logs
+# logs and mergetool orig files
+*.orig
+*.log
 log/
 ohsome_log/
 
-# models config
+# models config and trained models
 *.pkl
+*.joblib
 
 # exclude data files and folders, except for the test data
 input_survey_data/
@@ -40,3 +43,4 @@ bayesian-network/*.png
 # R files (used to implement cforest R package in python)
 *.sav
 *.Rdata
+

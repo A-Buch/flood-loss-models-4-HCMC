@@ -15,5 +15,5 @@ from . import feature_selection
 from . import figures
 from . import pipelines
 from . import preprocessing
-from . import settings
+from .. import settings
 from . import training

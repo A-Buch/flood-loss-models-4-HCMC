@@ -5,17 +5,20 @@
 __author__ = "Anna Buch, Heidelberg University"
 __email__ = "a.buch@stud.uni-heidelberg.de"
 
-# ## Feature selection
-# Enitre workflow with all models for the target variables relative content loss and business reduction (degree of loss) as well for the binary version of relative content loss (chance of loss)
-#
-# Due to the samll sample size a nested CV is used to have the possibility to even get generalization error, in the inner CV the best hyperaparamters based on k-fold are selected; in the outer cv the generalization error across all tested models is evaluated. A seprate unseen validation set as done by train-test split would have an insufficent small sample size.
-# Nested CV is computationally intensive but with the samll sample size and a well chosen set of only most important hyperparameters this can be overcome.
-#
-# - Logistic Regression (binary rcloss)
-# - Elastic Net
-# - eXtreme Gradient Boosting
-# - Random Forest
-#
+
+# ## Feature selection 
+# Enitre workflow with all models for the target variables relative content loss and business reduction as well for the binary version of relative content loss (chance of loss)
+# 
+# Due to the small survey dataset size a nested CV is used to assess the predicitve performance of the tested ML-models.
+# In the inner CV the best hyperaparamters based on k-fold are selected; in the outer cv the generalization error across all tested models is evaluated. 
+# Nested CV is computationally intensive but this limitation can be mitigated by the samll sample size and 
+# a well chosen a predefined range of hyperparameter values.
+ 
+
+# Regression for degree of rcloss or rbred:
+# - Elastic Net (EN)
+# - eXtreme Gradient Boosting (XGB)
+# - Conditional Random Forest (CRF)
 
 import sys
 import os
@@ -35,7 +38,7 @@ import matplotlib.patches as mpatches
 import seaborn as sns
 
 
-UTILS_PATH = os.path.join(os.path.abspath(""), "../../", "utils")
+UTILS_PATH = os.path.join(os.path.abspath(""), "./", "utils")
 sys.path.append(UTILS_PATH)
 
 import feature_selection as fs
@@ -47,7 +50,7 @@ import settings as s
 import pipelines as p
 import preprocessing as pp
 
-p.main()  # create/update model settings
+# p.main()  # create/update model settings
 seed = s.seed
 
 pd.set_option("display.max_columns", None)
@@ -88,35 +91,34 @@ nestedcv = importr("nestedcv")
 tdr = importr("tdr")
 
 
-targets = [("Target_relative_contentloss_euro", "degree of rcloss"), ("Target_businessreduction", "rbred")]
-target, target_plot = targets[1]
+
+targets = [("rcloss", "degree of rcloss"), ("rbred", "rbred")]
+target, target_plot = targets[0]   # <- change here: flood loss variable to process
 pred_target = f"pred_{target}"
 
 
 # Get logger  # test: init application
-main_logger = "__feature_extraction_bred__"
+main_logger = "__feature_extraction_degree__"
 logger = s.init_logger(main_logger)
 
 ## settings for cv
-kfolds_and_repeats = 10, 5  # 3, 1  # <k-folds, repeats> for nested cv
+kfolds_and_repeats = 5, 5 # 3, 1  # <k-folds, repeats> for nested cv
 inner_cv = RepeatedKFold(n_splits=kfolds_and_repeats[0], n_repeats=kfolds_and_repeats[1], random_state=seed)
-# outer_cv = RepeatedKFold(n_splits=kfolds_and_repeats[0], n_repeats=kfolds_and_repeats[1], random_state=seed)
 outer_cv = RepeatedKFold(n_splits=kfolds_and_repeats[0], n_repeats=1, random_state=seed)  # make same as for R nestedcv.train()
 
 
-## TODO make base outdir ./model_results/degree_of_loss
-##  out_dir = os.path.join(base_dir, "path")
-
 ## save models and their evaluation in following folders:
-Path("../../model_results/models_trained/degree_of_loss/nested_cv_models").mkdir(parents=True, exist_ok=True)
-Path("../../model_results/models_trained/degree_of_loss/final_models").mkdir(parents=True, exist_ok=True)
-Path("../../model_results/models_evaluation/degree_of_loss").mkdir(parents=True, exist_ok=True)
-Path("../../model_results/selected_features/degree_of_loss").mkdir(parents=True, exist_ok=True)
+INPATH_DATA = Path(s.INPATH_DATA) # input path
+OUTPATH_FEATURES, OUTPATH_FINALMODELS, OUTPATH_ESTIMATORS_NCV, OUTPATH_RESULTS = [ # create output paths
+    pp.create_output_dir(Path(d) / "degree_of_rcloss") for d in  
+    [s.OUTPATH_FEATURES, s.OUTPATH_FINALMODELS, s.OUTPATH_ESTIMATORS_NCV, s.OUTPATH_EVAL]
+]
+print(OUTPATH_FEATURES, OUTPATH_FINALMODELS, OUTPATH_ESTIMATORS_NCV, OUTPATH_RESULTS)
 
 
-# df_candidates = pd.read_excel("../../input_survey_data/input_data_contentloss_tueb_cantho.xlsx")
-# df_candidates = pd.read_excel("../../input_survey_data/input_data_contentloss_tueb.xlsx")
-df_candidates = pd.read_excel("../../input_survey_data/input_data_businessreduction_tueb.xlsx")
+
+## preprocessed HCMC survey data for rcloss
+df_candidates = pd.read_excel(f"{INPATH_DATA}/input_data_contentloss_tueb.xlsx")
 
 ##  use nice feature names
 df_candidates.rename(columns=s.feature_names_plot, inplace=True)
@@ -138,6 +140,14 @@ score_metrics = {
 }
 
 
+## Load set of hyperparameters
+hyperparams_set = pp.load_config(f"{UTILS_PATH}/hyperparameter_sets.json")
+
+
+## iterate over piplines. Each pipline contains a scaler and regressor (and optionally a bagging method) 
+pipelines = ["pipe_en", "pipe_crf", "pipe_xgb"]  
+
+
 ## empty variables to store model outputs
 eval_sets = {}
 models_trained = {}
@@ -147,20 +157,15 @@ predicted_values = {}
 df_feature_importances = pd.DataFrame(index=df_candidates.drop(target, axis=1).columns.to_list())
 models_scores = {}
 
-## iterate over piplines. Each pipline contains a scaler and regressor (and optionally a bagging method)
-pipelines = ["pipe_en", "pipe_crf", "pipe_xgb"]
-# pipelines = ["pipe_crf"]
-
-## Load set of hyperparamters
-hyperparams_set = pp.load_config("../../utils/hyperparameter_sets.json")
 
 
 for pipe_name in pipelines:
+
     TIME0 = datetime.now()
 
     ## load model pipelines
-    pipe = joblib.load(f"./pipelines/{pipe_name}.pkl")
-
+    pipe = joblib.load(f"{UTILS_PATH}/pipelines/{pipe_name}.pkl")
+ 
     try:
         model_name = re.findall("[a-zA-Z]+", str(pipe.steps[1][1].__class__).split(".")[-1])[0]  # get model name for python models
     except AttributeError:
@@ -206,6 +211,7 @@ for pipe_name in pipelines:
         # print("Impute records with missing values for Elastic Net or cforest",
         #        f"keeping {df_Xy.shape} damage cases for model training and evaluation")
 
+
     logger.info(
         f"Finally use {df_Xy.shape[0]} records for feature extraction, from those are {(df_Xy[target][df_Xy[target] == 0.0]).count()} cases with zero-loss or zero-reduction",
     )
@@ -217,6 +223,8 @@ for pipe_name in pipelines:
 
     ## run sklearn model
     if model_name != "cforest":
+
+
         ## fit model for unbiased model evaluation and for final model used for Feature importance, Partial Dependence etc.
         mf = t.ModelFitting(
             model=pipe,
@@ -231,7 +239,7 @@ for pipe_name in pipelines:
         models_trained_ncv = mf.model_fit_ncv()
 
         # save models from nested cv and final model on entire ds
-        joblib.dump(models_trained_ncv, f"../../model_results/models_trained/degree_of_loss/nested_cv_models/{model_name}_{target}.joblib")
+        joblib.dump(models_trained_ncv, f"{OUTPATH_ESTIMATORS_NCV}/{model_name}_{target}.joblib")
 
         ## evaluate model
         me = e.ModelEvaluation(
@@ -246,10 +254,12 @@ for pipe_name in pipelines:
         model_evaluation_results = me.model_evaluate_ncv()
 
         ## reverse sklearn.cross_validate() outputted regression scores (e.g. MAE, RMSE, SMAPE, R2)
-        model_evaluation_results = me.negate_scores_from_sklearn_cross_valdiate(  # TODO impl directly as method in ModelEvalaution()
-            model_evaluation_results, metric_names=("test_MAE", "test_MBE", "test_RMSE", "test_SMAPE")
+        model_evaluation_results = me.negate_scores_from_sklearn_cross_valdiate(
+            model_evaluation_results,
+	    metric_names=("test_MAE", "test_MBE", "test_RMSE", "test_SMAPE")
         )
 
+  
         ## visual check if hyperparameter ranges are good or need to be adapted
         logger.info("Parameter sets of best estimators outer test-sets:")
         for i in range(len(model_evaluation_results["estimator"])):
@@ -261,6 +271,8 @@ for pipe_name in pipelines:
             k: model_evaluation_results[k] for k in tuple("test_" + s for s in list(score_metrics.keys()))
         }  # get evaluation scores, metric names start with "test_<metricname>"
 
+  
+  
         ## Final model
 
         ## get  and save final model based on best MAE score during outer cv
@@ -273,29 +285,27 @@ for pipe_name in pipelines:
         logger.info("Performance of best estimator")
         for metric in models_scores[model_name].keys():
             print(metric, models_scores[model_name][metric][best_idx])
+         
 
         final_models_trained[model_name] = final_model
-        joblib.dump(final_model, f"../../model_results/models_trained/degree_of_loss/final_models/{model_name}_{target}.joblib")
+        joblib.dump(final_model, f"{OUTPATH_FINALMODELS}/{model_name}_{target}.joblib")
+
 
         ## get predictions of final model from respective outer test set
         test_set_best = df_Xy.iloc[model_evaluation_results["indices"]["test"][best_idx], :]
         finalmodel_X_test = test_set_best.drop(target, axis=1)
         finalmodel_y_test = test_set_best[target]
-        finalmodel_y_pred = final_model.predict(
-            finalmodel_X_test
-        )  # get predictions from final model for its test-set (should be the same as done during model evluation with ncv)
+        finalmodel_y_pred = final_model.predict(finalmodel_X_test)  # get predictions from final model for its test-set (should be the same as done during model evluation with ncv)
+
 
         ## Learning curve of train and test set of final model
         train_set_best = df_Xy.iloc[model_evaluation_results["indices"]["train"][best_idx], :]
         f.plot_learning_curves(
-            final_model,
-            train_set_best,
-            test_set_best,
-            target,
-            f"../../model_results/models_evaluation/degree_of_loss/learning_curves{target}_{model_name}.png",
-            model_name,
-        )
-
+            final_model, train_set_best, test_set_best, target,
+            f"{OUTPATH_RESULTS}/learning_curves{target}_{model_name}.png", 
+            model_name)
+        
+        
         ## Feature importance of best model on its test set
         importances = me.permutation_feature_importance(final_model, finalmodel_X_test, finalmodel_y_test, repeats=5)
 
@@ -303,7 +313,7 @@ for pipe_name in pipelines:
         with contextlib.suppress(Exception):
             models_coef[model_name] = me.calc_regression_coefficients(final_model, finalmodel_y_test, finalmodel_y_pred)
 
-            outfile = f"../../model_results/models_evaluation/degree_of_loss/regression_coefficients_{model_name}_{target}.xlsx"
+            outfile = f"{OUTPATH_RESULTS}/regression_coefficients_{model_name}_{target}.xlsx"
             models_coef[model_name].round(3).to_excel(outfile, index=True)
             logger.info(
                 f"Regression Coefficients:\n {models_coef[model_name].sort_values('probabilities', ascending=False)} \n .. saved to {outfile}"
@@ -315,6 +325,7 @@ for pipe_name in pipelines:
                 logger = s.decorate_init_logger(s.init_logger)("__warning_coefs__")
                 logger.info("non of the regression coefficients is significant")
                 logger = s.init_logger(main_logger)  # reset to previous state
+
 
     ## run R model
     else:
@@ -331,7 +342,8 @@ for pipe_name in pipelines:
         )
         # NOTE: normalization is not mandatory for decision-trees but might decrease processing time
         models_trained_ncv = mf.r_model_fit_ncv()  # pipe
-        joblib.dump(models_trained_ncv, f"../../model_results/models_trained/degree_of_loss/nested_cv_models/{model_name}_{target}.joblib")
+        joblib.dump(models_trained_ncv, f"{OUTPATH_ESTIMATORS_NCV}/{model_name}_{target}.joblib")
+
 
         me = e.ModelEvaluation(
             models_trained_ncv=models_trained_ncv,
@@ -343,6 +355,7 @@ for pipe_name in pipelines:
             seed=s.seed,
         )
         model_evaluation_results = me.r_model_evaluate_ncv()
+
 
         ## get std of CRF from inner folds
         ## TODO shorter name for r_model_evaluation_dict
@@ -371,9 +384,9 @@ for pipe_name in pipelines:
         logger.info("Performance of best CRF model: ")
         for metric in r_model_evaluation_dict.keys():
             print(f"{metric}: {r_model_evaluation_dict[metric][best_idx]}")
-
+        
         ## plot cforest learning curve
-        f.plot_r_learning_curve(df_Xy, target, f"../../model_results/models_evaluation/degree_of_loss/learning_curves{target}_{model_name}.png")
+        f.plot_r_learning_curve(df_Xy, target, f"{OUTPATH_RESULTS}/learning_curves_{target}_{model_name}.png")
 
         ## Feature importance of best model
         importances = me.r_permutation_feature_importance(final_model)
@@ -381,7 +394,9 @@ for pipe_name in pipelines:
         ## store model evaluation and final model
         models_scores[model_name] = r_model_evaluation_dict  ## store performance scores from R estimators
         final_models_trained[model_name] = final_model
-        joblib.dump(final_model, f"../../model_results/models_trained/degree_of_loss/final_models/{model_name}_{target}.joblib")
+        joblib.dump(final_model, f"{OUTPATH_FINALMODELS}/{model_name}_{target}.joblib")
+
+
 
     # ## Collect all models and their evaluation
 
@@ -416,26 +431,17 @@ for pipe_name in pipelines:
 ## Plot performance ranges of all evaluated estimators from outer cross-validation
 logger.info("Creating boxplots for range of performane scores from outer folds of nested cross-validation")
 f.boxplot_outer_scores_ncv(
-    models_scores, outfile=f"../../model_results/models_evaluation/degree_of_loss/boxplot_scores4ncv_{target}.png", target_name=target_plot
-)
+    models_scores, outfile=f"{OUTPATH_FINALMODELS}/boxplot_scores4ncv_{target}.png", target_name=target_plot)
 
 
 # store avergaed scores and std for later usage
 ## TODO remove overhead  -> store avergaed scores and std during loop
-xgb_model_evaluation = pd.DataFrame(models_scores["XGBRegressor"]).mean(
-    axis=0
-)  # get mean of outer cv metrics (negative MAE and neg RMSE, pos. R2, pos MBE, posSMAPE)
+xgb_model_evaluation = pd.DataFrame(models_scores["XGBRegressor"]).mean(axis=0)  # get mean of outer cv metrics (negative MAE and negative RMSE, positive R2 and MBE and SMAPE)
 xgb_model_evaluation_std = pd.DataFrame(models_scores["XGBRegressor"]).std(axis=0)  # get respective standard deviations
 crf__model_evaluation = pd.DataFrame(models_scores["cforest"]).mean(axis=0)
 crf_model_evaluation_std = pd.DataFrame(models_scores["cforest"]).std(axis=0)
 en_model_evaluation = pd.DataFrame(models_scores["ElasticNet"]).mean(axis=0)
 en_model_evaluation_std = pd.DataFrame(models_scores["ElasticNet"]).std(axis=0)
-# xgb_model_evaluation = pd.DataFrame(models_scores["XGBRegressor"]).median(axis=0)  # get median of outer cv metrics (negative MAE and neg RMSE, pos. R2, pos MBE, posSMAPE)
-# xgb_model_evaluation_std = pd.DataFrame(models_scores["XGBRegressor"]).std(axis=0)   # get respective standard deviations
-# crf__model_evaluation = pd.DataFrame(models_scores["cforest"]).median(axis=0)
-# crf_model_evaluation_std = pd.DataFrame(models_scores["cforest"]).std(axis=0)
-# en_model_evaluation = pd.DataFrame(models_scores["ElasticNet"]).median(axis=0)
-# en_model_evaluation_std = pd.DataFrame(models_scores["ElasticNet"]).std(axis=0)
 
 
 model_evaluation = pd.concat(
@@ -451,18 +457,17 @@ model_evaluation.columns = [
     "XGBRegressor_score_std",
 ]
 
-
 ## rename metrics
 model_evaluation.index = model_evaluation.index.str.replace("test_", "")
 
-outfile = f"../../model_results/models_evaluation/degree_of_loss/performance_{target}.xlsx"
+outfile = f"{OUTPATH_RESULTS}/performance_{target}.xlsx"
 model_evaluation.round(3).to_excel(outfile, index=True)
 logger.info(f"Outer evaluation scores of nested cross-validation (mean) :\n {model_evaluation.round(3)} \n.. saved to {outfile}")
 
 
-## Feature Importances
+## Feature Importances 
 
-#### prepare Feature Importances
+#### prepare Feature Importances 
 ## Have the same feature importance method across all applied ML models
 ## Weight Importances by model performance on outer loop (mean MAE)
 ## **Overall FI ranking (procedure similar to Rözer et al 2019; Brill 2022)**
@@ -495,7 +500,7 @@ f.plot_stacked_feature_importances(
     ],
     target_name=target_plot,
     model_names_plot=("Elastic Net", "Conditional Random Forest", "XGBRegressor"),
-    outfile=f"../../model_results/models_evaluation/degree_of_loss/feature_importances_{target}.png",
+    outfile=f"{OUTPATH_RESULTS}/feature_importances_{target}.png"
 )
 
 
@@ -516,8 +521,9 @@ fs.save_selected_features(
     df_candidates.drop(target, axis=1),  # TODO adpat function that target is only once added
     pd.DataFrame(df_candidates, columns=[target]),
     final_feature_names,
-    filename=f"../../model_results/selected_features/degree_of_loss/final_predictors_{target}.xlsx",
+    filename=f"{OUTPATH_FEATURES}/final_predictors_{target}.xlsx"
 )
+
 
 
 ## Partial dependence
@@ -565,6 +571,7 @@ for model_name in ["ElasticNet", "cforest", "XGBRegressor"]:
         pdp_features[model_name][predictor_name] = partial_dep
 
 
+
 ## Plot PDP
 
 most_important_features = df_feature_importances_plot.sort_values("weighted_sum_importances", ascending=False).index
@@ -589,6 +596,7 @@ plt.tight_layout()
 ## create PDP for all three models
 for feature in most_important_features[:9]:
     for model_name, color, idx_col in zip(["ElasticNet", "cforest", "XGBRegressor"], ["steelblue", "darkblue", "grey"], [0, 0, 0]):
+
         # idx position of subplot and plot settings
         sns.set_style("whitegrid", {"grid.linestyle": ":"})
         ax = plt.subplot(nrows, ncols, idx + 1 + idx_col)
@@ -603,9 +611,9 @@ for feature in most_important_features[:9]:
             feature_name=feature,
             partial_dependence_name="yhat",
             categorical=[],
-            outfile=f"../../model_results/models_evaluation/degree_of_loss/pdp_{target}.png",
-            **feature_info,
-        )
+            outfile=f"{OUTPATH_RESULTS}/pdp_{target}.png",
+            **feature_info
+            )
         p
         plt.ylim(0, 30)
         # plt.title(feature)
@@ -614,6 +622,7 @@ for feature in most_important_features[:9]:
 
     sns.rugplot(df_pd_feature, x=feature, height=0.02, color="black")
     idx = idx + 1
+
 
 
 ### Empirical ~ predicted
@@ -628,5 +637,6 @@ f.plot_residuals(
     df_residuals=predicted_values,
     model_names_abbreviation=["ElasticNet", "cforest", "XGBRegressor"],
     model_names_plot=["Elastic Net", "Conditional Random Forest", "XGBoost"],
-    outfile=f"../../model_results/models_evaluation/degree_of_loss/residuals_{target}.png",
+    outfile=f"{OUTPATH_RESULTS}/residuals_{target}.png"
 )
+

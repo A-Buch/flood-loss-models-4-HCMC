@@ -77,13 +77,13 @@ def percentage_of_nan(df):
     return logger.info(f"Percentage of missing values per feature [%]\n {round(df.isna().mean().sort_values(ascending=False)[:15]  * 100)}")
 
 
-@dataclass(frozen=False)  # make annoutations such as "cutoff" mutable
+@dataclass(frozen=False)  # frozen=False : make annoutations such as "cutoff" mutable
 class FuzzyMerge:
     """
-    Works like pandas merge except also merges on approximate matches. dataclass is a class mainly to store data
-    modified from: https://stackoverflow.com/questions/74778263/python-merge-two-dataframe-based-on-text-similarity-of-their-columns
+        Works like pandas merge except also merges on approximate matches. 
+        Dataclass is a class mainly to store data, unlike than a normal Class
+        modified bassed on: https://stackoverflow.com/questions/74778263/python-merge-two-dataframe-based-on-text-similarity-of-their-columns
     """
-
     left: pd.DataFrame
     right: pd.DataFrame
     left_on: str
@@ -103,3 +103,4 @@ class FuzzyMerge:
         matches = difflib.get_close_matches(left, right, n=self.n, cutoff=cutoff)
 
         return matches[0] if matches else None
+        

@@ -19,105 +19,101 @@ from sklearn.pipeline import Pipeline
 import settings as s
 
 seed = s.seed
-
 OUTPATH_PIPES = Path(s.OUTPATH_PIPES)
 
-def main():
-    ############ Logistic Regression ##########
-    pipe_logreg = Pipeline(
-        steps=[
-            ("scaler", MinMaxScaler()),
-            ("model", LogisticRegression(random_state=seed)),
-            # , class_weight="balanced"))
-        ]
-    )
 
-    ############ Random Forest Classifier ##########
 
-    pipe_rf = Pipeline(
-        steps=[
-            ("scaler", MinMaxScaler()),
-            (
-                "model",
-                RandomForestClassifier(
-                    random_state=seed,
-                    # class_weight="balanced"
-                    class_weight={0: 0.60, 1: 0.40},  # 0.4 0.6
-                ),
+############ Logistic Regression ##########
+pipe_logreg = Pipeline(
+    steps=[
+        ("scaler", MinMaxScaler()),
+        ("model", LogisticRegression(random_state=seed)),
+        # , class_weight="balanced"))
+    ]
+)
+
+############ Random Forest Classifier ##########
+
+pipe_rf = Pipeline(
+    steps=[
+        ("scaler", MinMaxScaler()),
+        (
+            "model",
+            RandomForestClassifier(
+                random_state=seed,
+                # class_weight="balanced"
+                class_weight={0: 0.60, 1: 0.40},  # 0.4 0.6
             ),
-        ]
-    )
+        ),
+    ]
+)
 
-    ############ Random Forest Regressor - REFERENCE MODEL ##########
+############ Random Forest Regressor - REFERENCE MODEL ##########
 
-    pipe_ref_model = Pipeline(
-        steps=[
-            ("scaler", MinMaxScaler()),
-            (
-                "model",
-                RandomForestRegressor(
-                    random_state=seed,
-                ),
+pipe_ref_model = Pipeline(
+    steps=[
+        ("scaler", MinMaxScaler()),
+        (
+            "model",
+            RandomForestRegressor(
+                random_state=seed,
             ),
-        ]
-    )
+        ),
+    ]
+)
 
-    ############  Elastic Net  ##################
-    pipe_en = Pipeline(
-        steps=[
-            ("scaler", MinMaxScaler()),
-            ("model", ElasticNet(random_state=seed)),
-        ]
-    )
-    #  Transformation: Box-cox
-    # pipe_en = Pipeline([
-    # ('scaler', MinMaxScaler()),
-    # ('model', TransformedTargetRegressor(regressor=ElasticNet(),
-    # transformer=PowerTransformer(method="box-cox", standardize=False) # def=False:
-    # #func=np.reciprocal, inverse_func=np.expm1
-    # )
-    # )])
+############  Elastic Net  ##################
+pipe_en = Pipeline(
+    steps=[
+        ("scaler", MinMaxScaler()),
+        ("model", ElasticNet(random_state=seed)),
+    ]
+)
+#  Transformation: Box-cox
+# pipe_en = Pipeline([
+# ('scaler', MinMaxScaler()),
+# ('model', TransformedTargetRegressor(regressor=ElasticNet(),
+# transformer=PowerTransformer(method="box-cox", standardize=False) # def=False:
+# #func=np.reciprocal, inverse_func=np.expm1
+# )
+# )])
 
-    # Elastic Net with Bagging
-    ensemble_model = {
-        "model": BaggingRegressor,  # default bootstrap=True
-        "kwargs": {
-            "estimator": ElasticNet(random_state=seed),
-            "bootstrap": True,
-            #'random_state':seed
-        },  # TODO: pass 'random_state':seed to baggingregressor
-    }
-    pipe_en_bag = Pipeline([("scaler", MinMaxScaler()), ("bagging", ensemble_model["model"](**ensemble_model["kwargs"]))])
+# Elastic Net with Bagging
+ensemble_model = {
+    "model": BaggingRegressor,  # default bootstrap=True
+    "kwargs": {
+        "estimator": ElasticNet(random_state=seed),
+        "bootstrap": True,
+        #'random_state':seed
+    },  # TODO: pass 'random_state':seed to baggingregressor
+}
+pipe_en_bag = Pipeline([("scaler", MinMaxScaler()), ("bagging", ensemble_model["model"](**ensemble_model["kwargs"]))])
 
-    ############  XGBoost Regressor  ##################
+############  XGBoost Regressor  ##################
 
-    pipe_xgb = Pipeline(
-        steps=[
-            ("scaler", MinMaxScaler()),
-            ("model", XGBRegressor(random_state=seed)),
-        ]
-    )
+pipe_xgb = Pipeline(
+    steps=[
+        ("scaler", MinMaxScaler()),
+        ("model", XGBRegressor(random_state=seed)),
+]
+)
 
-    ###########  Conditional Random Forest ##############
-    pipe_crf = "cforest"  ## "pipe_crf" specifies CRF model from Rpackage
+###########  Conditional Random Forest ##############
+pipe_crf = "cforest"  ## "pipe_crf" specifies CRF model from Rpackage
 
-    ## pkl file for models
+## pkl file for models
 
-    # REFERENCE model
-    joblib.dump(pipe_ref_model, OUTPATH_PIPES / "pipe_ref_model.pkl")
+# REFERENCE model
+joblib.dump(pipe_ref_model, OUTPATH_PIPES / "pipe_ref_model.pkl")
 
-    # CLASSIFICATION models
-    joblib.dump(pipe_rf, OUTPATH_PIPES / "pipe_rf.pkl")
-    joblib.dump(pipe_logreg, OUTPATH_PIPES / "pipe_logreg.pkl")
+# CLASSIFICATION models
+joblib.dump(pipe_rf, OUTPATH_PIPES / "pipe_rf.pkl")
+joblib.dump(pipe_logreg, OUTPATH_PIPES / "pipe_logreg.pkl")
 
-    # REGRESSION models
-    joblib.dump(pipe_en, OUTPATH_PIPES / "pipe_en.pkl")
-    joblib.dump(pipe_en_bag, OUTPATH_PIPES / "pipe_en_bag.pkl")
-    joblib.dump(pipe_xgb, OUTPATH_PIPES / "pipe_xgb.pkl")
-    joblib.dump(pipe_crf, OUTPATH_PIPES / "pipe_crf.pkl")
+# REGRESSION models
+joblib.dump(pipe_en, OUTPATH_PIPES / "pipe_en.pkl")
+joblib.dump(pipe_en_bag, OUTPATH_PIPES / "pipe_en_bag.pkl")
+joblib.dump(pipe_xgb, OUTPATH_PIPES / "pipe_xgb.pkl")
+joblib.dump(pipe_crf, OUTPATH_PIPES / "pipe_crf.pkl")
 
 
-
-if __name__ == "__main__":
-    main()
-    

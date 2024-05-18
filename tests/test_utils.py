@@ -13,7 +13,7 @@ from sklearn.preprocessing import MinMaxScaler
 sys.path.insert(0, "../")
 from utils.evaluation import ModelEvaluation
 import utils.evaluation_utils as eu
-import utils.settings as s
+import settings as s
 
 
 # Get logger

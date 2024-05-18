@@ -7,7 +7,6 @@ __email__ = "a.buch@stud.uni-heidelberg.de"
 
 
 import pandas as pd
-
 from sklearn.preprocessing import MinMaxScaler
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 
