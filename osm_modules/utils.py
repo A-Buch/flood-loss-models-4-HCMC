@@ -6,13 +6,8 @@ __author__ = "Christina Ludwig, GIScience Research Group, Heidelberg University"
 __email__ = "christina.ludwig@uni-heidelberg.de"
 
 
-import logging
 import os
 import json
-import pygeos
-import numpy as np
-import math
-import subprocess
 
 
 def create_subfolder(out_dir: str, name: str):
@@ -51,11 +46,7 @@ def load_config(config_file):
     Load config file
     :return:
     """
-    assert os.path.exists(
-        config_file
-    ), f"Configuration file does not exist: {os.path.abspath(config_file)}"
+    assert os.path.exists(config_file), f"Configuration file does not exist: {os.path.abspath(config_file)}"
     with open(config_file, "r") as src:
         config = json.load(src)
     return config
-
-

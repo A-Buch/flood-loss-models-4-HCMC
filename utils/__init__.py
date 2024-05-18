@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """init"""
-""" 
+
+"""
 __author__ = "Anna Buch, Heidelberg University"
 __email__ = "a.buch@stud.uni-heidelberg.de"
 """
@@ -16,4 +17,3 @@ from . import pipelines
 from . import preprocessing
 from . import settings
 from . import training
-

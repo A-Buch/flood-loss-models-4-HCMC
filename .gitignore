@@ -40,7 +40,3 @@ bayesian-network/*.png
 # R files (used to implement cforest R package in python)
 *.sav
 *.Rdata
-
-
-
-

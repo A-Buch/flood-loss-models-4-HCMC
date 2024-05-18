@@ -29,6 +29,3 @@ line-length = 150  # Same as Black
 #indent-style = "space"
 # skip-magic-trailing-comma = false
 # line-ending = "auto"
-
-
-

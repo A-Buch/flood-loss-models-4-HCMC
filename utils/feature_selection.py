@@ -14,7 +14,7 @@ from statsmodels.stats.outliers_influence import variance_inflation_factor
 
 import rpy2.robjects as robjects
 from rpy2.robjects.packages import importr
-from rpy2.robjects import pandas2ri # pandas.DataFrames to R dataframes 
+from rpy2.robjects import pandas2ri  # pandas.DataFrames to R dataframes
 from rpy2.robjects.conversion import localconverter
 
 import settings as s
@@ -25,8 +25,6 @@ pandas2ri.activate()
 # rpy2.ipython.html.init_printing()
 
 stats = importr("stats")
-
-
 
 
 def equal_freq_binning(df, variable_name, cuts=3, group_labels=None, drop_old_variable=False):
@@ -40,7 +38,9 @@ def equal_freq_binning(df, variable_name, cuts=3, group_labels=None, drop_old_va
     """
     if group_labels is None:
         group_labels = ["low", "medium", "high"]
-    logger.info(f"{df.shape[0]} records are euqally split into categories, so that same number of records is in each class (equal frequency binning) ")
+    logger.info(
+        f"{df.shape[0]} records are euqally split into categories, so that same number of records is in each class (equal frequency binning) "
+    )
     logger.info(f"Group labels and bins : {group_labels, pd.qcut(df[variable_name], q=cuts).value_counts()}")
 
     new_variable_name = variable_name + "_c"
@@ -63,13 +63,13 @@ def normalize_X(X_train, X_test):
     X_test (df): pd.DataFrame with predictors for testing
     return: scaled X_train and X_test
     """
-    ## normalize X data 
+    ## normalize X data
     scaler_for_X = MinMaxScaler().fit(X_train)
     X_train_scaled = scaler_for_X.transform(pd.DataFrame(X_train))
     X_test_scaled = scaler_for_X.transform(pd.DataFrame(X_test))
 
     return pd.DataFrame(X_train_scaled, columns=X_train.columns), pd.DataFrame(X_test_scaled, columns=X_test.columns)
-    ## normalize y data 
+    ## normalize y data
     ## TODO find and test a better way to scale y, eg via TransformedTargetRegressor() ?
     # y_train =np.array(y_train).reshape(-1, 1)
     # y_test = np.array(y_test).reshape(-1, 1)
@@ -82,19 +82,19 @@ def r_ctree_statistics(model):
     """
     model = uses r model inside python of type rpy2.robjects.vectors.ListVector
     return: pandas dataframe with log p-values
-    ## Code snippets: 
-    ## https://stats.stackexchange.com/questions/171301/interpreting-ctree-partykit-output-in-r, 
+    ## Code snippets:
+    ## https://stats.stackexchange.com/questions/171301/interpreting-ctree-partykit-output-in-r,
     ## https://www.askpython.com/python/examples/r-in-python
     """
-    robjects.r('''
+    robjects.r("""
         func_stats <- function(m, verbose=FALSE) {
             stats = nodeapply(m, ids=1, function(n) info_node(n)$criterion)
-            stats = stats$`1`            
+            stats = stats$`1`
             }
-        ''')
-    
+        """)
+
     # get function outside R
-    func_stats = robjects.globalenv['func_stats'] 
+    func_stats = robjects.globalenv["func_stats"]
 
     #  store statistics in pd df
     df_ctree_stats = pd.DataFrame()
@@ -109,21 +109,21 @@ def r_ctree_statistics(model):
 
 def r_best_hyperparamters(model):
     """
-    Get hyperparamters from best model in R GridSearch 
+    Get hyperparamters from best model in R GridSearch
     """
-    robjects.r('''
+    robjects.r("""
         r_best_hyperparamters <- function(m, verbose=FALSE) {
             m$bestTune
         }
-    ''')
-    r_best_hyperparamters = robjects.globalenv['r_best_hyperparamters']
+    """)
+    r_best_hyperparamters = robjects.globalenv["r_best_hyperparamters"]
     return r_best_hyperparamters(model)
 
 
 def r_dataframe_to_pandas(df):
     """
     Convert a R DataFrame to a Pandas DataFrame by keeping column names
-    df : R DataFrame 
+    df : R DataFrame
     return: pandas DataFrame
     """
     with localconverter(robjects.default_converter + pandas2ri.converter):
@@ -133,37 +133,34 @@ def r_dataframe_to_pandas(df):
 
 def vif_score(X_scaled_drop_nan):
     df_vif = pd.DataFrame()
-    df_vif["names"]  = X_scaled_drop_nan.columns
-    df_vif["vif_scores"] = [
-        variance_inflation_factor(X_scaled_drop_nan.values.astype(float), i)
-        for i in range(len(X_scaled_drop_nan.columns))
-    ]
+    df_vif["names"] = X_scaled_drop_nan.columns
+    df_vif["vif_scores"] = [variance_inflation_factor(X_scaled_drop_nan.values.astype(float), i) for i in range(len(X_scaled_drop_nan.columns))]
     df_vif = df_vif.sort_values("vif_scores", ascending=False).reset_index(drop=True)
     logger.info(f"averaged VIF score is around: {round(df_vif.vif_scores.mean(),1)}")
 
     return df_vif
 
 
-def normalize_feature_importances(df_feature_importances, scale_range=(0,10)):
-    """ 
+def normalize_feature_importances(df_feature_importances, scale_range=(0, 10)):
+    """
     Normalize columns of pd.DatFrame to same scale
-    scale_range (tuple of integers): range of scale (min, max) 
-    return: scaled pd.DataFrame 
+    scale_range (tuple of integers): range of scale (min, max)
+    return: scaled pd.DataFrame
     """
     logger.info(f"Normalize columns to scale: {scale_range[0]} - {scale_range[1]}")
     ## scale importance scores to  same units (non important feautres were removed before)
     df_feature_importances = pd.DataFrame(
-        MinMaxScaler(feature_range=scale_range).fit_transform(df_feature_importances), 
+        MinMaxScaler(feature_range=scale_range).fit_transform(df_feature_importances),
         index=df_feature_importances.index,
-        columns=df_feature_importances.columns
+        columns=df_feature_importances.columns,
     )
     return df_feature_importances
 
 
 def calc_weighted_sum_feature_importances(df_feature_importances, model_weights):
-    """ 
-    model_weights (dict) : keys are feature importnace columns, values are the weights 
-    return: pd.DataFrame same as df_feature_importances 
+    """
+    model_weights (dict) : keys are feature importnace columns, values are the weights
+    return: pd.DataFrame same as df_feature_importances
     but added column with weighted sum for each feature importance
     """
     ## Normalize feature importnaces to same scale
@@ -171,10 +168,10 @@ def calc_weighted_sum_feature_importances(df_feature_importances, model_weights)
 
     ## assigne weights to importnace scores; weight better models stronger
     models_fi_list = []
-    for model_fi, weight in model_weights.items(): 
+    for model_fi, weight in model_weights.items():
         model_fi.split("_")[0]
         model_fi_weighted = f"{model_fi}_weighted"
-        df_feature_importances[model_fi_weighted] =  df_feature_importances[model_fi] / weight
+        df_feature_importances[model_fi_weighted] = df_feature_importances[model_fi] / weight
         models_fi_list.append(model_fi_weighted)
 
     ## derive weighted sum for each feature across all models
@@ -191,18 +188,18 @@ def save_selected_features(X_train, y_train, selected_feat_cols, filename="fs_mo
     y_train (df): y training set with target
     selected_feat_cols (list): column names of selected features
     """
-    selected_feat = X_train.loc[:,selected_feat_cols]
-    not_selected_feat = X_train.drop( selected_feat, axis=1)
+    selected_feat = X_train.loc[:, selected_feat_cols]
+    not_selected_feat = X_train.drop(selected_feat, axis=1)
 
     logger.info(f"total features: {X_train.shape[1]}")
     logger.info(f"dropped features: {len(not_selected_feat.columns)}")
-    logger.info(f"selected {len(selected_feat_cols)} features (might include further variables for plotting maps etc.): \n{X_train[selected_feat_cols].columns.to_list()}\n")  # noqa: E501
+    logger.info(
+        f"selected {len(selected_feat_cols)} features (might include further variables for plotting maps etc.): \n{X_train[selected_feat_cols].columns.to_list()}\n"
+    )  # noqa: E501
 
     ## write selected features from training set to disk
     train = pd.concat([y_train, X_train], axis=1)
-    df = train[ y_train.columns.to_list() + selected_feat_cols.to_list() ]
+    df = train[y_train.columns.to_list() + selected_feat_cols.to_list()]
 
     logger.info(f"Saving selected features to disk: {filename}")
     df.to_excel(filename, index=False)
-
-

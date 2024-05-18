@@ -7,7 +7,6 @@ __email__ = "christina.ludwig@uni-heidelberg.de"
 
 import os
 from ohsome import OhsomeClient
-from modules.utils import load_config
 
 
 def build_ohsome_filters(layer: dict):
@@ -50,8 +49,10 @@ def download_features(bpoly: list, layers: list, outdir: str, timestamp: str = N
     for layer in layers:
         ohsome_filter_str = build_ohsome_filters(layer)
         response = client.elements.geometry.post(
-            bpolys=bpoly, time=timestamp, filter=ohsome_filter_str, properties="metadata,tags"
-            #bpolys=bbox, time=timestamp, filter=ohsome_filter_str, properties="tags"
+            bpolys=bpoly,
+            time=timestamp,
+            filter=ohsome_filter_str,
+            properties="metadata,tags",
+            # bpolys=bbox, time=timestamp, filter=ohsome_filter_str, properties="tags"
         )
         response.to_json(os.path.join(outdir, f"{layer['name']}.geojson"))
-

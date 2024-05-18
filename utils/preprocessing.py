@@ -15,11 +15,11 @@ from dataclasses import dataclass
 import difflib
 
 import settings as s
+
 logger = s.init_logger("__preprocessing__")
 
 
-
-def load_config(config_file:str):
+def load_config(config_file: str):
     """
     Load e.g. hyperparameter files
     """
@@ -33,10 +33,7 @@ def drop_object_columns(df):
     """
     Remove object columns from dataframe
     """
-    df = df.loc[:, ~df.columns.str.contains(
-            r"(.88)$|(.99)$|(.specify)$|(.Specify)$|(others)"
-            )
-        ] 
+    df = df.loc[:, ~df.columns.str.contains(r"(.88)$|(.99)$|(.specify)$|(.Specify)$|(others)")]
     return df
 
 
@@ -44,11 +41,8 @@ def drop_typos(df):
     """
     Repair typos in numeric columns
     """
-    df = df.replace({
-        " ": np.nan, 
-        "":np.nan
-        }) # fill empty cells, otherwise no cols append possible
-    df = df.replace({"^,":"0.", ",":"."}, regex=True) 
+    df = df.replace({" ": np.nan, "": np.nan})  # fill empty cells, otherwise no cols append possible
+    df = df.replace({"^,": "0.", ",": "."}, regex=True)
     return df
 
 
@@ -69,37 +63,32 @@ def percentage_of_nan(df):
     Print number of missing data per variable
     df : pd.DataFrame to derive amount of missing data per variable
     """
-    return logger.info(
-        f"Percentage of missing values per feature [%]\n {round(df.isna().mean().sort_values(ascending=False)[:15]  * 100)}"
-    )
+    return logger.info(f"Percentage of missing values per feature [%]\n {round(df.isna().mean().sort_values(ascending=False)[:15]  * 100)}")
 
 
 @dataclass(frozen=False)  # make annoutations such as "cutoff" mutable
 class FuzzyMerge:
     """
-        Works like pandas merge except also merges on approximate matches. dataclass is a class mainly to store data
-        modified from: https://stackoverflow.com/questions/74778263/python-merge-two-dataframe-based-on-text-similarity-of-their-columns
+    Works like pandas merge except also merges on approximate matches. dataclass is a class mainly to store data
+    modified from: https://stackoverflow.com/questions/74778263/python-merge-two-dataframe-based-on-text-similarity-of-their-columns
     """
+
     left: pd.DataFrame
     right: pd.DataFrame
     left_on: str
     right_on: str
-    how: str = "left" # "inner"  
+    how: str = "left"  # "inner"
     n: int = 1  # match with best one
     cutoff: float = 0.9
     # higher cutoff == more strict in matching, TODO make cutoff as variable,
 
     def main(self) -> pd.DataFrame:
         df = self.right.copy()
-        df[self.left_on] = [
-            self.get_closest_match(x, self.left[self.left_on]) 
-            for x in df[self.right_on]
-        ]
-        return self.left.merge(df, on=self.left_on, how=self.how) # noqa: E501
+        df[self.left_on] = [self.get_closest_match(x, self.left[self.left_on]) for x in df[self.right_on]]
+        return self.left.merge(df, on=self.left_on, how=self.how)  # noqa: E501
 
     def get_closest_match(self, left: pd.Series, right: pd.Series, cutoff=cutoff) -> str or None:  # noqa: E501
-        #matches = difflib.get_close_matches(left, right, n=self.n, cutoff=self.cutoff)
+        # matches = difflib.get_close_matches(left, right, n=self.n, cutoff=self.cutoff)
         matches = difflib.get_close_matches(left, right, n=self.n, cutoff=cutoff)
 
         return matches[0] if matches else None
-        
