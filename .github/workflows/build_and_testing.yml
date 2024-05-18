@@ -1,7 +1,7 @@
 name: Build and Testing
 
 on:
-  # Run CI on pushes to all fix- and develop-branches, 
+  # Run CI on pushes to all fix- and develop-branches,
   # and on only pull requests to the main branch
   push:
     branches:
