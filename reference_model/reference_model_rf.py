@@ -35,7 +35,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import seaborn as sns
 
-UTILS_PATH = os.path.join(os.path.abspath(""), "../", "utils")
+UTILS_PATH = os.path.join(os.path.abspath(""), "./utils")
 sys.path.append(UTILS_PATH)
 import training as t
 import evaluation as e

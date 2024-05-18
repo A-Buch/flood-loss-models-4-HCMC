@@ -4,7 +4,7 @@ line-length = 150
 ## exclude = "\.pyi?$" #extend-exclude = '''.*test_.*'''
 
 [tool.ruff]
-lint.select = [
+select = [
     "E",    # pycodestyle Error
     "F",    # Pyflakes
     "I",    # isort
@@ -13,7 +13,7 @@ lint.select = [
     "C90",  # mccabe
 ]
 fix = true
-lint.ignore = ["C901", "E714", "I001"]
+ignore = ["C901", "E714", "I001"]
 exclude = [".venv", ".ipynb", "versioneer.py", "*_cache"]
 line-length = 150  # Same as Black
 

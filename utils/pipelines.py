@@ -20,8 +20,7 @@ import settings as s
 
 seed = s.seed
 
-OUTPATH_PIPES = Path(s.OUTPATH_UTILS, "pipelines")
-
+OUTPATH_PIPES = Path(s.OUTPATH_PIPES)
 
 def main():
     ############ Logistic Regression ##########
@@ -118,5 +117,7 @@ def main():
     joblib.dump(pipe_crf, OUTPATH_PIPES / "pipe_crf.pkl")
 
 
+
 if __name__ == "__main__":
     main()
+    

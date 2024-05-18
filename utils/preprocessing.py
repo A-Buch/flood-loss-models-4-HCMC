@@ -19,6 +19,17 @@ import settings as s
 logger = s.init_logger("__preprocessing__")
 
 
+
+def create_output_dir(output_dir):
+    """
+    Create path to store outputs as pathlib objects
+    return: string of created new output path (relative to cwd) 
+    """
+    print("Created ", output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    return os.path.relpath(output_dir)
+
+
 def load_config(config_file: str):
     """
     Load e.g. hyperparameter files
