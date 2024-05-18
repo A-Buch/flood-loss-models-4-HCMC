@@ -78,11 +78,6 @@ stats_r = importr("stats")  # rename due to similar python package
 # pandas.DataFrames to R dataframes
 pandas2ri.activate()
 
-# print r df in html
-import rpy2.ipython.html
-
-rpy2.ipython.html.init_printing()
-
 # get libraries for CRF processing, ctree_controls etc
 party = importr("party")  # Random Forest with Conditional Inference Trees (Conditional Random Forest)
 permimp = importr("permimp")  # conditional permutation feature importance
