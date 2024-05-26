@@ -19,7 +19,15 @@ repos: #  definitions see: https://pre-commit.com/hooks.html
     -   id: black
         args: [--check, --diff, --preview]
 
-# pre-commit-hooks
+# nbstripout hook
+# supports saving of jupyter notebooks on git
+repos:
+- repo: https://github.com/kynan/nbstripout
+  rev: 0.7.1
+  hooks:
+    - id: nbstripout
+
+# pre-commit-hooks (as part of Continuous Integration)
 -   repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.6.0
     hooks:
