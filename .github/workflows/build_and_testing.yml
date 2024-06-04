@@ -6,14 +6,27 @@ on:
   push:
     branches:
     - "**" # matches every branch
-    - "!main" # except main
+    - "!main" # except main and branches for fixing bugs
+    - "!fix_**"
   pull_request:
     branches:
-    - main
+    - "**"
 
-# define jobs [build_and_test, coverage]
+# define jobs [actionlint, build_and_test, coverage]
 jobs:
 
+  actionlint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download actionlint
+        id: get_actionlint
+        run: bash <(curl https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+        shell: bash
+      - name: Check workflow files
+        run: ${{ steps.get_actionlint.outputs.executable }} -color
+        shell: bash
+        
   build_and_test:
     strategy:
       #fail-fast: false
