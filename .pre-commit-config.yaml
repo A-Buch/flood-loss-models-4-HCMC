@@ -21,11 +21,22 @@ repos: #  definitions see: https://pre-commit.com/hooks.html
 
 # nbstripout hook
 # supports saving of jupyter notebooks on git
-repos:
-- repo: https://github.com/kynan/nbstripout
-  rev: 0.7.1
-  hooks:
-    - id: nbstripout
+-   repo: https://github.com/kynan/nbstripout
+    rev: 0.7.1
+    hooks:
+    -   id: nbstripout
+
+# check syntax of workflow files
+-   repo: https://github.com/rhysd/actionlint
+    rev: v1.7.0
+    hooks:
+    -   id: actionlint  # GitHub Actions Workflow linter
+
+# check pyproject.toml file
+-   repo: https://github.com/abravalheri/validate-pyproject
+    rev: v0.17
+    hooks:
+    -   id: validate-pyproject  # Validate the contents of pyproject.toml
 
 # pre-commit-hooks (as part of Continuous Integration)
 -   repo: https://github.com/pre-commit/pre-commit-hooks
