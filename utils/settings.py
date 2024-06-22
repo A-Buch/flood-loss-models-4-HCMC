@@ -28,18 +28,18 @@ OUTPATH_BN = "../model_results/bayesian_network/"
 OUTPATH_FEATURES = "../model_results/selected_features/"
 OUTPATH_EVAL = "../model_results/models_evaluation/"  # figures of model performance and evaluation
 
-# global color_palette_models  # color palettes for models 
-color_palette_models = {
+# plot settings
+plot_settings_colorpalette_models = {
     "ElasticNet": "steelblue", 
     "cforest":  "darkblue", 
     "XGBRegressor":  "grey", 
+    "RandomForestRegressor": "steelblue"  # reference model
 }
-# global shortnames_modelnames_colors        # define modelnames and their abbreviations and colors for plotting
-# shortnames_modelnames_colors={
-#     "Conditional Random Forest": {"cforest": "darkblue"}, 
-#     "Elastic Net": {"ElasticNet":"steelblue"}, 
-#     "XGBoost": {"XGBRegressor": "grey"}, 
-# }
+plot_settings_modelnames = {
+    "ElasticNet": "Elastic Net", 
+    "cforest":  "Conditional Random Forest", 
+    "XGBRegressor":  "XGBoost", 
+}
 
 ## nice feature names for the figures
 feature_names_plot = {
