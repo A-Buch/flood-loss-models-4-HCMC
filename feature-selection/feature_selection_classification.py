@@ -61,13 +61,13 @@ outer_cv = RepeatedStratifiedKFold(n_splits=kfolds_and_repeats[0], n_repeats=1, 
 ## save models and their evaluation in following folders:
 INPATH_DATA = Path(s.INPATH_DATA) # input path
 OUTPATH_FEATURES, OUTPATH_FINALMODELS, OUTPATH_ESTIMATORS_NCV, OUTPATH_RESULTS = [ # create output paths
-    pp.create_output_dir(Path(d) / "chance_of_rcloss") for d in  
+    pp.create_output_dir(Path(d) / "chance_of_rbred") for d in
     [s.OUTPATH_FEATURES, s.OUTPATH_FINALMODELS, s.OUTPATH_ESTIMATORS_NCV, s.OUTPATH_EVAL]
 ]
 print(OUTPATH_FEATURES, OUTPATH_FINALMODELS, OUTPATH_ESTIMATORS_NCV, OUTPATH_RESULTS)
 
 
-targets = [("chance of rcloss", "chance of rcloss")]
+targets = [("chance of rbred", "chance of rbred")]
 target, target_plot = targets[0]
 pred_target = f"pred_{target}"
 
@@ -77,9 +77,11 @@ logger = s.init_logger(main_logger)
 
 
 ## load DS for relative content loss
-df_candidates = pd.read_excel(f"{INPATH_DATA}/input_data_contentloss_tueb.xlsx")
-# change target name for component for rclsos "degree of rcloss" in  s.feature_names_plot 
+# df_candidates = pd.read_excel(f"{INPATH_DATA}/input_data_contentloss_tueb.xlsx")
+df_candidates = pd.read_excel(f"../{INPATH_DATA}/input_data_businessreduction_tueb.xlsx")
+## change target name for component for rclsos "degree of rcloss" in  s.feature_names_plot 
 s.feature_names_plot["Target_relative_contentloss_euro"]  = "chance of rcloss"
+
 
 
 ##  use nice feature names
