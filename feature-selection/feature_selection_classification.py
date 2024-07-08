@@ -306,7 +306,7 @@ for pipe_name in pipelines:
             ## check if any regression coefficient is significant 
             if np.min(models_coef[model_name]["probabilities"]) >= 0.05:
                 ## manually decorate init_logger, extending with creation of log file for warnings
-                logger = s.decorate_init_logger.info(s.init_logger)("__warning_coefs__") 
+                logger = s.decorate_init_logger(s.init_logger)("__warning_coefs__") 
                 logger.warning("non of the regression coefficients is significant")
 
 
