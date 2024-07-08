@@ -13,13 +13,15 @@ import functools
 
 
 # global seed
-seed = 42   # use same seed for across all methods
+seed = 42   # use same seed across all models
 
-# define input data paths
-INPATH_DATA = "../input_survey_data/"
 # src / utils paths
 OUTPATH_UTILS = "./utils"
 OUTPATH_PIPES = f"{OUTPATH_UTILS}/pipelines"
+# log path
+OUTPATH_LOGS = f"{OUTPATH_UTILS}/../../logs"
+# define input data paths
+INPATH_DATA = "../input_survey_data/"
 # define paths for model configurations and trained models [pickle, joblib]
 OUTPATH_FINALMODELS = "../models_trained/final_models/"
 OUTPATH_ESTIMATORS_NCV = "../models_trained/nested_cv_models/"
@@ -63,29 +65,6 @@ feature_names_plot = {
 }
 
 
-## decorator for logger
-def decorate_init_logger(func):
-    """
-    Decorator for logger
-    """
-    @functools.wraps(func)  # preserve original func information from magic methods such as __repr__
-    def wrapper(*args):
-       
-        # Call the wrapped function
-        logger = func(*args)
-
-        # Log file handler
-        log_file = "./warning_regression_coeffcient.log"
-        print(f"Creating log file {log_file} due to warning that regression coefficients are all non significant")
-        # os.path.exists(os.path.dirname(log_file))
-        if not os.path.exists(log_file):
-            open(log_file, "w+").close()
-
-        return logger
-
-    return wrapper
-
-
 ## decorated/wrapped func
 # @decorate_init_logger # uncoment when to make decorator permanent
 def init_logger(name):
@@ -108,5 +87,39 @@ def init_logger(name):
     streamhandler.setFormatter(formatter)
     if not logger.handlers: 
         logger.addHandler(streamhandler)
+
+    # Add file handler
+    if not os.path.exists(OUTPATH_LOGS):
+        os.makedirs(OUTPATH_LOGS)
+    log_file = f"{OUTPATH_LOGS}/logs_{name}.log"
+    if not os.path.exists(log_file):
+            open(log_file, "w+").close()
+    file_handler = logging.FileHandler(log_file)
+    file_handler.setLevel(logging.INFO)
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
     
     return logger
+
+
+## decorator for logger
+def decorate_init_logger(func):
+    """
+    Decorator for logger
+    """
+    @functools.wraps(func)  # preserve original func information from magic methods such as __repr__
+    def wrapper(*args):
+        # Call the wrapped function
+        logger = func(*args)
+
+        # Log file handler
+        log_file = f"./{OUTPATH_LOGS}/warning_regression_coeffcient.log"
+        print(f"Creating log file {log_file} due to warning that regression coefficients are all non significant")
+        # os.path.exists(os.path.dirname(log_file))
+        if not os.path.exists(log_file):
+            open(log_file, "w+").close()
+
+        return logger
+
+    return wrapper
+

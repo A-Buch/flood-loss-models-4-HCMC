@@ -11,7 +11,7 @@ __pycache__/
 # logs and mergetool orig files
 *.orig
 *.log
-log/
+logs/
 ohsome_log/
 
 # models config and trained models

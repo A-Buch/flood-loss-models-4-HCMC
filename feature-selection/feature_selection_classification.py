@@ -28,9 +28,12 @@ from sklearn.metrics import classification_report, precision_score, make_scorer
 
 import matplotlib.pyplot as plt
 
+import contextlib
+import warnings
+warnings.filterwarnings('ignore')
 
 
-UTILS_PATH = os.path.join(os.path.abspath(""), "./utils")
+UTILS_PATH = os.path.join(os.path.abspath(""), "../", "utils")
 sys.path.append(UTILS_PATH)
 
 import training as t
@@ -44,9 +47,7 @@ import preprocessing as pp
 
 seed = s.seed
 
-import contextlib
-import warnings
-warnings.filterwarnings('ignore')
+
 
 pd.set_option('display.max_columns', None)
 pd.set_option('display.float_format', lambda x: '%.4f' % x)
@@ -61,7 +62,7 @@ outer_cv = RepeatedStratifiedKFold(n_splits=kfolds_and_repeats[0], n_repeats=1, 
 ## save models and their evaluation in following folders:
 INPATH_DATA = Path(s.INPATH_DATA) # input path
 OUTPATH_FEATURES, OUTPATH_FINALMODELS, OUTPATH_ESTIMATORS_NCV, OUTPATH_RESULTS = [ # create output paths
-    pp.create_output_dir(Path(d) / "chance_of_rcloss") for d in  
+    pp.create_output_dir(".." /  Path(d) / "chance_of_rcloss") for d in
     [s.OUTPATH_FEATURES, s.OUTPATH_FINALMODELS, s.OUTPATH_ESTIMATORS_NCV, s.OUTPATH_EVAL]
 ]
 print(OUTPATH_FEATURES, OUTPATH_FINALMODELS, OUTPATH_ESTIMATORS_NCV, OUTPATH_RESULTS)
@@ -71,23 +72,22 @@ targets = [("chance of rcloss", "chance of rcloss")]
 target, target_plot = targets[0]
 pred_target = f"pred_{target}"
 
-# Get logger  # test: init application
-main_logger = "__feature_extraction_chance__"
+# Get logger
+main_logger = "__feature_extraction_chance_rcloss__"
 logger = s.init_logger(main_logger)
 
 
 ## load DS for relative content loss
-df_candidates = pd.read_excel(f"{INPATH_DATA}/input_data_contentloss_tueb.xlsx")
-# change target name for component for rclsos "degree of rcloss" in  s.feature_names_plot 
+df_candidates = pd.read_excel(f"../{INPATH_DATA}/input_data_contentloss_tueb.xlsx")
+## change target name for component for rclsos "degree of rcloss" in  s.feature_names_plot 
 s.feature_names_plot["Target_relative_contentloss_euro"]  = "chance of rcloss"
-
 
 ##  use nice feature names
 df_candidates.rename(columns=s.feature_names_plot, inplace=True)
 
 ## test drop flow velocity due to diffenret flooding sources (eg. overwhelmed draingage systems)
 # df_candidates = df_candidates.drop("flowvelocity", axis=1)
-logger.info("Variables from input DS", df_candidates.describe())
+logger.info(f"Variables from input DS {df_candidates.describe()}")
 
 
 # Variables for average classification report  # TODO move to utils functions
@@ -123,17 +123,13 @@ predicted_values = {}
 df_feature_importances = pd.DataFrame(index=df_candidates.drop(target, axis=1).columns.to_list())
 models_scores = {}
 
-## Load set of hyperparamters
-hyperparams_set = pp.load_config(f"{s.OUTPATH_UTILS}/hyperparameter_sets.json")
-print(hyperparams_set)
-
 
 for pipe_name in pipelines:
 
     TIME0 = datetime.now()
 
     ## load model pipeline and get model name
-    pipe = joblib.load(f'{s.OUTPATH_PIPES}/{pipe_name}.pkl')
+    pipe = joblib.load(f'../{Path(s.OUTPATH_PIPES)}/{pipe_name}.pkl')
 
 
     try:
@@ -142,14 +138,14 @@ for pipe_name in pipelines:
         model_name = pipe # get R model name
     
 
-    print( f"\n  ############### Applying {model_name} on {target}:  ###############\n")
+    logger.info( f"\n  ############### Applying {model_name} on {target}:  ###############\n")
 
     ## load hyperparameter space
     param_space = hyperparams_set[f"{model_name}_hyperparameters"]
 
     ## if bagging is used, adapt hyperparameeter names
     if "bag" in pipe_name.split("_"):
-        print(f"Testing {model_name} with bagging")
+        logger.info(f"Testing {model_name} with bagging")
         param_space = { k.replace('model', 'bagging__estimator') : v for (k, v) in param_space.items()}
 
 
@@ -161,12 +157,12 @@ for pipe_name in pipelines:
 
     
     ## drop content value var due its only needed to recalculate losses after BN
-    with contextlib.suppress(Exception):
-        df_Xy.drop(["shp_business_limitation"], axis=1, inplace=True)
-        df_Xy.drop(["closs"], axis=1, inplace=True)
-        df_Xy.drop(["shp_content_value_euro"], axis=1, inplace=True)
-        df_Xy.drop(["shp_sector"], axis=1, inplace=True)
-        
+    for i in ["shp_business_limitation", "closs", "shp_content_value_euro", "shp_sector", "geometry"]:
+        try:
+            df_Xy.drop(i, axis=1, inplace=True)
+            logger.info(f"removed unneded feautre from feautre space: {i}" )
+        except:
+            continue
         
     ## get predictor names
     X_names = df_Xy.drop(target, axis=1).columns.to_list()
@@ -180,8 +176,8 @@ for pipe_name in pipelines:
     # print("test impact of median imputation on model performance")
     # df_Xy[X_names] = df_Xy[X_names].apply(lambda x: x.fillna(x.median()),axis=0)
     df_Xy.dropna(inplace=True)
-    print("Drop records with missing values",
-        f"keeping {df_Xy.shape} damage cases for model training and evaluation")
+    logger.info("Drop records with missing values" +
+           f"\nkeeping {df_Xy.shape} damage cases for model training and evaluation")
    
 
     ## set target as binary class
@@ -191,20 +187,16 @@ for pipe_name in pipelines:
     ## clean df from remaining records containg nan
     df_Xy.dropna(inplace=True)
 
-    print("Amount of missing target values should be zero: ", df_Xy[target].isna().sum())
-    print(
-        "Using ",
-        df_Xy.shape[0],
-        " records, from those are ",
-        (df_Xy[target][df_Xy[target] == 0.0]).count(),
-        " cases with zero-loss or zero-reduction",
-    )
+    logger.info(f"Amount of missing target values should be zero: {df_Xy[target].isna().sum()}")
+    logger.info(f"Using {df_Xy.shape[0]} records," +
+           f"from those are {(df_Xy[target][df_Xy[target] == 0.0]).count()}" +
+           "cases with zero-loss or zero-reduction")
 
     X = df_Xy[X_names]
     y = df_Xy[target]
-    print(y.describe())
-    print("Used predictors:", X.columns)
-    print("Response variable:", y.name)
+    logger.info(y.describe())
+    logger.info(f"Used predictors: {X.columns}")
+    logger.info(f"Response variable: {y.name}")
 
 
     if model_name != "crf":
@@ -226,11 +218,11 @@ for pipe_name in pipelines:
         # from sklearn.utils.class_weight import compute_sample_weight
         # sample_weights = np.where(df_candidates_continous[target].between(0.01, 0.05), 0.5, 0.5) 
         # sample_weights = np.where(df_candidates_continous[target].between(0.01, 0.05), 0.8, 0.2)  ## NOTE curr best number of y_pred with 72 damage cases (0.6/0.4 weigth=15 damage cases in y_pred )
-        sample_weights = np.where(df_candidates_continous[target] > 0.01, 0.6, 0.4) # org
+        #sample_weights = np.where(df_candidates_continous[target] > 0.01, 0.6, 0.4) # org
         # sample_weights = np.where(df_candidates_continous[target].between(0.0001, 0.05), 0.4, 0.6)  # 0..6 / 0.4 give ca 56 damage cases in ypred NOTE 0.8 / 0.2 44 damage cases in ypred
         # no or only slight sample weight, too high weight such as .8, 0.2 = too less non-damage cases are predicted in NCV
-        print(pd.Series(sample_weights).describe())
-        print(pd.Series(sample_weights).value_counts())
+        #print(pd.Series(sample_weights).describe())
+        #print(pd.Series(sample_weights).value_counts())
         
            
         me = e.ModelEvaluation(
@@ -255,13 +247,13 @@ for pipe_name in pipelines:
                scoring=make_scorer(custom_scorer))
         # Average values in classification report for all folds in a K-fold Cross-validation  
         # print(nested_score) # scores from each fold
-        print("classification report from outer cross validation") 
-        print(classification_report(originalclass, predictedclass)) 
+        logger.info("classification report from outer cross validation\n" +
+                f"{classification_report(originalclass, predictedclass)}") 
 
 
         ## visual check if hyperparameter ranges are good or need to be adapted
         for i in range(len(model_evaluation_results["estimator"])):
-            print(f"{model_name}: ", model_evaluation_results["estimator"][i].best_params_)
+            logger.info(f"{model_name}: {model_evaluation_results['estimator'][i].best_params_}")
 
 
         ## store models evaluation 
@@ -275,7 +267,7 @@ for pipe_name in pipelines:
         ## get final model based on best MAE score during outer cv
         best_idx = list(models_scores[model_name]["test_f1_macro"]).index(max(models_scores[model_name]["test_f1_macro"]))
         final_model = model_evaluation_results["estimator"][best_idx]
-        print("used params for best model:", final_model.best_params_)
+        logger.info(f"used params for best model: {final_model.best_params_}")
         final_model = final_model.best_estimator_
 
         ## get predictions of final model from respective outer test set
@@ -306,12 +298,15 @@ for pipe_name in pipelines:
             models_coef[model_name] = me.calc_regression_coefficients(final_model, finalmodel_y_true, finalmodel_y_pred)
             outfile = f"{OUTPATH_RESULTS}/regression_coefficients_{model_name}_{target}.xlsx"
             models_coef[model_name].round(3).to_excel(outfile, index=True)
-            print("Regression Coefficients:\n", models_coef[model_name].sort_values("probabilities", ascending=False), f"\n.. saved to {outfile}")
+            logger.info(f"Regression Coefficients:" +
+                f"\n {models_coef[model_name].sort_values('probabilities', ascending=False)}" +
+                f"\n.. saved to {outfile}"
+            )
             
             ## check if any regression coefficient is significant 
             if np.min(models_coef[model_name]["probabilities"]) >= 0.05:
                 ## manually decorate init_logger, extending with creation of log file for warnings
-                logger = s.decorate_init_logger(s.init_logger)("__warning_coefs__") 
+                logger = s.decorate_init_logger.info(s.init_logger)("__warning_coefs__") 
                 logger.warning("non of the regression coefficients is significant")
 
 
@@ -327,11 +322,11 @@ for pipe_name in pipelines:
 
     ## NOTE preserve index from loaded input dataset, 
     ## use predicted probabilities of loss as input for the estimation of relative content loss
-    print(predicted_values[model_name].describe())
+    logger.info(predicted_values[model_name].describe())
     predicted_values[model_name].to_excel(f"{OUTPATH_FEATURES}/predictions_{target.replace(' ', '_')}.xlsx", index=True)
 
     ## Feature importance
-    print("\nSelect features based on permutation feature importance")
+    logger.info("\nSelect features based on permutation feature importance")
     df_importance = pd.DataFrame(
         {
             f"{model_name}_importances" : importances[0],   # mean importnaces across repeats
@@ -344,12 +339,10 @@ for pipe_name in pipelines:
         left_index=True, right_index=True, how="outer")
 
     df_feature_importances = df_feature_importances.sort_values(f"{model_name}_importances", ascending=False)  # get most important features to the top
-    print("5 most important features:", df_feature_importances.iloc[:5].index.to_list())
+    logger.info("5 most important features:", df_feature_importances.iloc[:5].index.to_list())
     #df_importance = df_importance.loc[df_importance[f"{model_name}_importances"] >= 0.000000, : ]
 
-    print(
-    f"\nTraining and evaluation of {model_name} took {(datetime.now() - TIME0).total_seconds()} seconds\n"
-    )
+    logger.info(f"\nTraining and evaluation of {model_name} took {(datetime.now() - TIME0).total_seconds()} seconds\n")
 
 
 ## Print model evaluation based on performance on outer cross-validation 
@@ -363,13 +356,13 @@ model_evaluation.index = model_evaluation.index.str.replace("test_", "")
 
 outfile = f"{OUTPATH_RESULTS}/performance_{target}.xlsx"
 model_evaluation.round(3).to_excel(outfile, index=True)
-print("Outer evaluation scores:\n", model_evaluation.round(4), f"\n.. saved to {outfile}")
+logger.info(f"Outer evaluation scores:\n {model_evaluation.round(4)}, \n.. saved to {outfile}")
 
 ## Print evaluation nested cv
-print("y true: \n", predicted_values[model_name]["y_true"].value_counts())
-print("y pred from nested cv: \n", pd.Series(predicted_values[model_name]["y_pred"]).value_counts())
+logger.info(f"y true: \n {predicted_values[model_name]['y_true'].value_counts()}")
+logger.info(f"y pred from nested cv: \n {pd.Series(predicted_values[model_name]['y_pred']).value_counts()}")
 
 # ### Empirical median ~ predicted median
 for k,v in predicted_values.items():
-    print(f"\n{k} estimators from nested cross-validation:")
-    print(eu.empirical_vs_predicted(predicted_values[k]["y_true"], predicted_values[k]["y_pred"]))
+    logger.info(f"\n{k} estimators from nested cross-validation:")
+    logger.info(eu.empirical_vs_predicted(predicted_values[k]["y_true"], predicted_values[k]["y_pred"]))
