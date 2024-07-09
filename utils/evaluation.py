@@ -5,6 +5,8 @@
 __author__ = "Anna Buch, Heidelberg University"
 __email__ = "a.buch@stud.uni-heidelberg.de"
 
+import os, sys
+from pathlib import Path
 import numpy as np
 import pandas as pd
 import functools
@@ -16,6 +18,8 @@ from sklearn.model_selection import cross_validate, cross_val_predict
 
 from scipy import stats
 
+# filepath = Path(__file__)
+# os.sys.path.append(str(filepath))
 import feature_selection as fs
 import evaluation_utils as eu
 import settings as s
@@ -192,6 +196,22 @@ class ModelEvaluation(object):
         }
         return model_performance_ncv
 
+
+    def r_get_final_model(self, models_trained_ncv):
+        """
+        Function to select best performed CRF-estimator from nested cross-validation
+        return: function
+        """
+        robjects.r("""
+            r_final_model <- function(model, verbose=FALSE) {
+                model$final_fit$finalModel
+            }
+        """)
+        r_final_model = robjects.globalenv["r_final_model"]
+
+        return r_final_model(self.models_trained_ncv)
+
+
     def calc_residuals(self):
         """
         Get and store observed, predicted target (for clasification additional predicted probabilities), residuals (prediction -observation)
@@ -257,7 +277,7 @@ class ModelEvaluation(object):
         model_coefs = model.named_steps["model"].coef_
         model_intercept = model.named_steps["model"].intercept_
         coefs_intercept = np.append(model_intercept, list(model_coefs))
-        print("coefs_intercept = np.append(model_intercept, list(model_coefs))", coefs_intercept)
+        logger.info(f"coefs_intercept = np.append(model_intercept, list(model_coefs)) {coefs_intercept}")
 
         ## calc significance of coefficient (p-values),  modified based on : https://stackoverflow.com/questions/27928275/find-p-value-significance-in-scikit-learn-linearregression
         newX = np.append(np.ones((len(y_true_from_model), 1)), self.X, axis=1)
@@ -341,7 +361,7 @@ class ModelEvaluation(object):
 
     ## decorator for R model for partial dependences
     # Note: make sure that variables are not modified inside wrapper() eg. not do Xy = Xy.dropna()
-    def decorator_func(self, model, Xy, y_name, feature_name, scale=True):
+    def decorate_get_partial_dependence(self, model, Xy, y_name, feature_name, scale=True):
         """
         Decorator to get partial dependence instead of python-sklearn-model from R-party-model
         """

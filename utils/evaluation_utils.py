@@ -13,7 +13,7 @@ from scipy import stats
 
 import settings as s
 
-logger = s.init_logger("__evaluation_metrics__")
+logger = s.init_logger("__evaluation_utils__")
 
 
 def mean_bias_error(y_true, y_pred):
@@ -77,7 +77,7 @@ def calc_confidence_interval(y_set, confidence_level=0.95):
     #                  scale=stats.sem(y_set))
 
     counts = ((y_set > conf_interval[0]) & (y_set <= conf_interval[1])).sum(axis=0)
-    print("confidence interval:", conf_interval, f"\ncases within interval: {counts}")
+    logger.info(f"confidence interval: {conf_interval},\ncases within interval: {counts}")
 
     return np.round(conf_interval, 2)
 

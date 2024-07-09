@@ -13,6 +13,7 @@ import json
 
 from dataclasses import dataclass
 import difflib
+import contextlib
 
 import settings as s
 
@@ -25,8 +26,9 @@ def create_output_dir(output_dir):
     Create path to store outputs as pathlib objects
     return: string of created new output path (relative to cwd) 
     """
-    print("Created ", output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
+    with contextlib.suppress(Exception): # preserve directory and its file if it already exists
+        print("Create ", output_dir)
+        output_dir.mkdir(parents=True, exist_ok=False)
     return os.path.relpath(output_dir)
 
 

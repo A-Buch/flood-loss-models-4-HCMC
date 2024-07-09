@@ -9,6 +9,7 @@ __email__ = "a.buch@stud.uni-heidelberg.de"
 import numpy as np
 import pandas as pd
 import contextlib
+import re
 
 from sklearn.metrics import confusion_matrix, mean_absolute_error as mae
 from scipy import stats
@@ -275,40 +276,34 @@ def plot_r_learning_curve(eval_set, target_name, outfile, r_model_name="cforest"
     plt.close()
 
     fig.get_figure().savefig(outfile, dpi=300, bbox_inches="tight")
-
-
-def plot_stacked_feature_importances(df_feature_importances, target_name, model_names_plot, outfile):
+def plot_stacked_feature_importances(df_feature_importances, target_name:str, outfile:str):
     """
     Stack feature importances of multiple models into one barchart
     df_feature_importances : pd.DataFrame with columns which contain feature importances to plot
+    # modelnames : name of used models (e.g. Elastic Net, cforest..) used to create legend
     """
-    model_name_1, model_name_2, model_name_3 = model_names_plot  # TODO update with s.color_palette_models from settings
-
-    ## TODO remove hardcode - function is currently limited to three models
-    feature_importance_1, feature_importance_2, feature_importance_3 = df_feature_importances.columns.to_list()
+    # get modelnames as column names ("<modelname>_importances" -> "<modelname>"), needed for plotting with s.plot_settings_color_palette_models()
+    df_feature_importances.columns = [re.sub("_importances", "", c) for c in df_feature_importances.columns]  # columns names are modelnames
 
     ## plot
-    plt.figure(figsize=(30, 22))  ## TODO add figsize as kwargs fig_kwargs={'figsize':[15,15]}
+    plt.figure(figsize=(10, 15))  ## TODO add figsize as kwargs eg. fig_kwargs={'figsize':[15,15]}
     sns.set_style("whitegrid", {"axes.grid": False})
 
     fig = df_feature_importances.plot.barh(
         stacked=True,
-        color={feature_importance_1: "steelblue", feature_importance_2: "darkblue", feature_importance_3: "grey"},
-        # color=s.color_palette_models,
-        width=0.5,
+        color=s.plot_settings_colorpalette_models,
+        width=0.3,
         alpha=0.7,
     )
     plt.xlabel("Importance")
     plt.ylabel("")
     plt.title(f"Feature importances for {target_name.replace('_',' ')}", fontweight="bold", fontsize=16)
 
-    ## legend
-    top_bar = mpatches.Patch(color="steelblue", label=model_name_1, alpha=0.7)  # TODO update with s.color_palette_models from settings
-    middle_bar = mpatches.Patch(color="darkblue", label=model_name_2, alpha=0.7)
-    bottom_bar = mpatches.Patch(color="grey", label=model_name_3, alpha=0.7)
+    ## plot layout and legend
     plt.tick_params(axis="x", which="major", labelsize=12)
     plt.tick_params(axis="y", which="major", labelsize=12)
-    plt.legend(handles=[top_bar, middle_bar, bottom_bar], loc="lower right")
+    plt.legend(fontsize=15, loc="lower right")
+    # plt.legend({modelnames:s.plot_settings_colorpalette_models[modelnames]}, fontsize=25, loc="lower center", bbox_to_anchor=(0.5, 0.1))
     plt.tight_layout()
 
     fig.get_figure().savefig(outfile, dpi=300, bbox_inches="tight")
@@ -412,8 +407,7 @@ def plot_observed_predicted(
 
 # plt.close()
 
-
-def plot_residuals(df_residuals, model_names_abbreviation, model_names_plot, outfile):
+def plot_residuals(df_residuals, model_names_abbreviation, model_names_plot, outfile, figsize=(12, 8)):
     """
     Generate plots of residuals , TOdO write residuals to csv file
     residuals : model residuals, property from ModelEvaluation.residuals
@@ -435,31 +429,39 @@ def plot_residuals(df_residuals, model_names_abbreviation, model_names_plot, out
 
     ## TODO add figsize as kwargs fig_kwargs={'figsize':[15,15]}
 
-    f, (ax0, ax1) = plt.subplots(2, models_n, figsize=(12, 8), sharex="col", sharey="row")
+    fig, (row0, row1) = plt.subplots(2, models_n, figsize=figsize, sharex="col", sharey="row")
 
     for idx, abbrev, model_name, color in zip(range(0, models_n), model_names_abbreviation, model_names_plot, ["steelblue", "darkblue", "grey"]):
         y_true = df_residuals[abbrev]["y_true"]
         y_pred = df_residuals[abbrev]["y_pred"]
         residuals = df_residuals[abbrev]["residual"]
 
-        ## 1.st plot obs ~ pred
-        sns.scatterplot(x=y_true, y=y_pred, ax=ax0[idx], alpha=0.5, color=color)
-        sns.regplot(x=y_true, y=y_pred, ax=ax0[idx], scatter=False)
+        ## change axis setting if only one model is plotted
+        if models_n > 1:
+            ax0 = row0[idx]
+            ax1 = row1[idx]
+        else:
+            ax0 = row0
+            ax1 = row1
 
-        ax0[idx].set_title(f"{model_name} regression")
-        ax0[idx].set_ylabel("predictions")
+        ## 1.st plot obs ~ pred
+        sns.scatterplot(x=y_true, y=y_pred, ax=ax0, alpha=0.5, color=color)
+        sns.regplot(x=y_true, y=y_pred, ax=ax0, scatter=False)
+
+        ax0.set_title(f"{model_name} regression")
+        ax0.set_ylabel("predictions")
 
         ## 2.nd obs ~ residuals
-        sns.scatterplot(x=y_true, y=residuals, ax=ax1[idx], alpha=0.5, color=color)
+        sns.scatterplot(x=y_true, y=residuals, ax=ax1, alpha=0.5, color=color)
         # ax1[idx].set_title(f"{full_name} regression ")
-        ax1[idx].set_xlabel("observations")
-        ax1[idx].set_ylabel("residuals [prediction - observation]")
-        ax1[idx].axhline(0, ls="--")
+        ax1.set_xlabel("observations")
+        ax1.set_ylabel("residuals \n[predictions - observations]")
+        ax1.axhline(0, ls="--")
 
-        plt.suptitle("Residual distributions of the best-performed estimators", fontweight="bold", fontsize=25)
+        plt.suptitle("Residual distributions of the  best-performed estimators", fontweight="bold", fontsize=25)
         plt.subplots_adjust(top=0.2)
 
-        f.get_figure().savefig(outfile, dpi=300, bbox_inches="tight")
+        fig.get_figure().savefig(outfile, dpi=300, bbox_inches="tight")
         plt.tight_layout()
         plt.close()
 
@@ -503,7 +505,7 @@ def boxplot_outer_scores_ncv(models_scores, outfile, target_name):
                     data=df_outer_scores_of_all_models,
                     orient="v",
                     ax=ax,
-                    palette=s.color_palette_models,
+                    palette=s.plot_settings_colorpalette_models,
                     width=[0.4],
                     boxprops=dict(alpha=0.7),
                 ).set(xlabel=None, ylabel=None)
@@ -537,21 +539,18 @@ def boxplot_outer_scores_ncv(models_scores, outfile, target_name):
         # ax.xlabel("")
 
         plt.suptitle(
-            f"Prediction errors of the best-performed estimators for {target_name}, assessed by nested cross-validation",
+            f"Prediction errors of the 10 best-performed CRF-estimators for {target_name}, \nassessed by nested cross-validation\n",
             fontweight="bold",
             fontsize=25,
         )
-        plt.subplots_adjust(top=0.955)
+        plt.subplots_adjust(top=0.965)
 
         ## legend
-        top_bar = mpatches.Patch(color="steelblue", label="Elastic Net", alpha=0.7)  # TODO update with s.color_palette_models from settings
-        middle_bar = mpatches.Patch(color="darkblue", label="Conditional Random Forest", alpha=0.7)
-        bottom_bar = mpatches.Patch(color="grey", label="XGBRegressor", alpha=0.7)
-        plt.legend(handles=[top_bar, middle_bar, bottom_bar], fontsize=20, loc="lower center", bbox_to_anchor=(0.5, 0.1))
-        # ax.title(name, fontsize=14)
-
+        plt.legend({model_name:s.plot_settings_colorpalette_models[model_name]}, fontsize=25, loc="lower center", bbox_to_anchor=(0.5, 0.1))
         plt.tight_layout()
+
         plt.savefig(outfile, dpi=300, bbox_inches="tight")  # format='jpg'
+
 
 
 def plot_boxplot_scatterplot(df, group, column, scatterpoints):
