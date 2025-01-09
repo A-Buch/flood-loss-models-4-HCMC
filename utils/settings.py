@@ -3,7 +3,7 @@
 """Global variables and logger functions"""
 
 __author__ = "Anna Buch, Heidelberg University"
-__email__ = "a.buch@stud.uni-heidelberg.de"
+__email__ = "anna.buch@uni-heidelberg.de"
 
 
 
