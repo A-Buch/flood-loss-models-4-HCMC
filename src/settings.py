@@ -6,20 +6,19 @@ __author__ = "Anna Buch, Heidelberg University"
 __email__ = "anna.buch@uni-heidelberg.de"
 
 
-
 import os
 import logging
 import functools
 
 
 # global seed
-seed = 42   # use same seed across all models
+seed = 42  # use same seed across all models
 
-# src / utils paths
-OUTPATH_UTILS = "./utils"
-OUTPATH_PIPES = f"{OUTPATH_UTILS}/pipelines"
+# src paths
+OUTPATH_SRC = "./src"
+OUTPATH_PIPES = f"{OUTPATH_SRC}/pipelines"
 # log path
-OUTPATH_LOGS = f"{OUTPATH_UTILS}/../../logs"
+OUTPATH_LOGS = f"{OUTPATH_SRC}/../../logs"
 # define input data paths
 INPATH_DATA = "../input_survey_data/"
 # define paths for model configurations and trained models [pickle, joblib]
@@ -32,36 +31,32 @@ OUTPATH_EVAL = "../model_results/models_evaluation/"  # figures of model perform
 
 # plot settings
 plot_settings_colorpalette_models = {
-    "ElasticNet": "steelblue", 
-    "cforest":  "darkblue", 
-    "XGBRegressor":  "grey", 
-    "RandomForestRegressor": "steelblue"  # reference model
+    "cforest": "darkblue",
+    "RandomForestRegressor": "steelblue",  # reference model
 }
 plot_settings_modelnames = {
-    "ElasticNet": "Elastic Net", 
-    "cforest":  "Conditional Random Forest", 
-    "XGBRegressor":  "XGBoost", 
+    "cforest": "Conditional Random Forest",
 }
 
 ## nice feature names for the figures
 feature_names_plot = {
-    "Target_relative_contentloss_euro" : "rcloss",
-    "Target_contentloss_euro" : "closs",
-    "Target_businessreduction" : "rbred",
-    "flowvelocity" : "flow velocity",
+    "Target_relative_contentloss_euro": "rcloss",
+    "Target_contentloss_euro": "closs",
+    "Target_businessreduction": "rbred",
+    "flowvelocity": "flow velocity",
     "shp_employees": "no. employees",
-    "water_depth_cm": "water depth inside",
+    "water_depth_cm": "water depth",
     "emergency_measures": "emergency measures",
-    'flood_experience': "flood experience", 
-    'inundation_duration_h': "inundation duration", 
-    'precautionary_measures_lowcost': "non-structural measures", 
+    "flood_experience": "flood experience",
+    "inundation_duration_h": "inundation duration",
+    "precautionary_measures_lowcost": "non-structural measures",
     "precautionary_measures_expensive": "structural measures",
-    'bage': "building age", 
-    'b_area': "building area",
-    'hh_monthly_income_euro': "mthly. income", 
+    "bage": "building age",
+    "b_area": "building area",
+    "hh_monthly_income_euro": "mthly. income",
     "shp_avgmonthly_sale_euro": "mthly. sales",
-    'resilience' : "resilience",
-    'contaminations': "contaminations"
+    "resilience": "resilience",
+    "contaminations": "contaminations",
 }
 
 
@@ -71,7 +66,7 @@ def init_logger(name):
     """
     Set up a logger instance
     Modified version based on code from <christina.ludwig@uni-heidelberg.de> for SM2T project
-    name (str): Name of logger 
+    name (str): Name of logger
     log_file (str): path to log file
     """
     logger = logging.getLogger(name)
@@ -85,7 +80,7 @@ def init_logger(name):
     streamhandler = logging.StreamHandler()
     streamhandler.setLevel(logging.INFO)
     streamhandler.setFormatter(formatter)
-    if not logger.handlers: 
+    if not logger.handlers:
         logger.addHandler(streamhandler)
 
     # Add file handler
@@ -93,12 +88,12 @@ def init_logger(name):
         os.makedirs(OUTPATH_LOGS)
     log_file = f"{OUTPATH_LOGS}/logs_{name}.log"
     if not os.path.exists(log_file):
-            open(log_file, "w+").close()
+        open(log_file, "w+").close()
     file_handler = logging.FileHandler(log_file)
     file_handler.setLevel(logging.INFO)
     file_handler.setFormatter(formatter)
     logger.addHandler(file_handler)
-    
+
     return logger
 
 
@@ -107,6 +102,7 @@ def decorate_init_logger(func):
     """
     Decorator for logger
     """
+
     @functools.wraps(func)  # preserve original func information from magic methods such as __repr__
     def wrapper(*args):
         # Call the wrapped function
@@ -122,4 +118,3 @@ def decorate_init_logger(func):
         return logger
 
     return wrapper
-
