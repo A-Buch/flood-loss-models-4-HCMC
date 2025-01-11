@@ -10,7 +10,7 @@ repos: #  definitions see: https://pre-commit.com/hooks.html
     rev: v0.4.4
     hooks:
     -   id: ruff     # linter (pre-commit.yml incl isort thus no need to add it as addtional hook)
-        args: [ --fix, --show-fixes]
+        args: [ --fix]
     -   id: ruff-format    # formatter
 
 # Black hooks (--preview flag allows autofix of line-lengths which were before detected by ruff linter)
