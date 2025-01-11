@@ -1,3 +1,4 @@
+## inital setup: `poetry run pre-commit install
 ## local run: pre-commit run --all-files
 
 repos: #  definitions see: https://pre-commit.com/hooks.html
@@ -9,7 +10,7 @@ repos: #  definitions see: https://pre-commit.com/hooks.html
     rev: v0.4.4
     hooks:
     -   id: ruff     # linter (pre-commit.yml incl isort thus no need to add it as addtional hook)
-        args: [ --fix, --show-fixes]
+        args: [ --fix, --unsafe-fixes]
     -   id: ruff-format    # formatter
 
 # Black hooks (--preview flag allows autofix of line-lengths which were before detected by ruff linter)
@@ -18,13 +19,6 @@ repos: #  definitions see: https://pre-commit.com/hooks.html
     hooks:
     -   id: black
         args: [--check, --diff, --preview]
-
-# nbstripout hook
-# supports saving of jupyter notebooks on git
--   repo: https://github.com/kynan/nbstripout
-    rev: 0.7.1
-    hooks:
-    -   id: nbstripout
 
 # check syntax of workflow files
 -   repo: https://github.com/rhysd/actionlint

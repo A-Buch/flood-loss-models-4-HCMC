@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "utils"
+name = "src"
 version = "0.1.0"
 description = ""
 authors = ["Anna Buch <anna.buch@uni-heidelberg.de>"]
@@ -33,14 +33,14 @@ select = [
     "C90",  # mccabe
 ]
 fix = true
-ignore = ["C901", "E714", "I001"]
+ignore = ["C901", "E714", "I001", "E501", "E402"]   # E501 line too long, E402 Module level import at top of file
 exclude = [".venv", ".ipynb", "versioneer.py", "*_cache"]
 line-length = 150  # Same as Black
 
 [tool.ruff.lint]
 fixable = ["ALL"] # default
 # select = ["E4", "E7", "E9", "F"] # default: https://docs.astral.sh/ruff/configuration/
-# ignore = ["E402]
+# ignore = []
 # Allow fix for all enabled rules (when `--fix`) is provided.
 # unfixable = []
 
