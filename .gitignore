@@ -34,7 +34,7 @@ bayesian-network/*.png
 # notebooks, except certain NBs for BN
 *.ipynb
 !bayesian-network/*.ipynb
-!data_preparation/*.ipynb
+!data-preparation/*.ipynb
 
 # R files (used to implement cforest R package in python)
 *.sav
