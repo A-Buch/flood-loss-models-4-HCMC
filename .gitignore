@@ -2,8 +2,6 @@
 .ipynb_checkpoints/
 ipython_config.py
 .vscode/
-.idea/
-*.egg-info/
 __pycache__/
 .pytest_cache/
 .ruff_cache/
@@ -20,7 +18,7 @@ ohsome_log/
 
 # exclude data files and folders, except for the test data
 input_survey_data/
-*.xlsx  # make sure that no survey-data or its modified versions are pushed to repo
+*.xlsx  # make sure that no survey-data is published in the repository
 figures_for_latex/
 model_results/
 reference_model_results/
@@ -33,12 +31,9 @@ osm_modules/*.geojson
 bayesian-network/*.pdf
 bayesian-network/*.png
 
-# notebooks, except certain for BN and data preprocessing
+# notebooks, except certain NBs for BN
 *.ipynb
 !bayesian-network/*.ipynb
-!explorative-data-analysis/*.ipynb
-!data-preprocessing/*.ipynb
-
 
 # R files (used to implement cforest R package in python)
 *.sav
