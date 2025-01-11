@@ -16,7 +16,7 @@ openpyxl = "^3.1.5"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2.5"
-pre-commit = "^2.17.0"
+pre-commit = "^3.0.0"
 
 [tool.black]
 line-length = 150
@@ -37,10 +37,10 @@ ignore = ["C901", "E714", "I001"]
 exclude = [".venv", ".ipynb", "versioneer.py", "*_cache"]
 line-length = 150  # Same as Black
 
-[tool.ruff.lint]  # default ruff config, equaivalent to Black default config
+[tool.ruff.lint]
 fixable = ["ALL"] # default
 # select = ["E4", "E7", "E9", "F"] # default: https://docs.astral.sh/ruff/configuration/
-# ignore = []
+# ignore = ["E402]
 # Allow fix for all enabled rules (when `--fix`) is provided.
 # unfixable = []
 
