@@ -9,7 +9,7 @@ import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import RandomizedSearchCV
 
-import settings as s
+import src.settings as s
 
 import rpy2.robjects as robjects
 from rpy2.robjects.packages import importr

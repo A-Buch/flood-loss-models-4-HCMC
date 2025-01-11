@@ -5,8 +5,6 @@
 __author__ = "Anna Buch, Heidelberg University"
 __email__ = "anna.buch@uni-heidelberg.de"
 
-import os, sys
-from pathlib import Path
 import numpy as np
 import pandas as pd
 import functools
@@ -15,14 +13,11 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_absolute_error, r2_score
 from sklearn.inspection import permutation_importance, partial_dependence
 from sklearn.model_selection import cross_validate, cross_val_predict
-
 from scipy import stats
 
-# filepath = Path(__file__)
-# os.sys.path.append(str(filepath))
-import feature_selection as fs
-import evaluation_utils as eu
-import settings as s
+import src.feature_selection as fs
+import src.evaluation_utils as eu
+import src.settings as s
 
 import rpy2.robjects as robjects
 from rpy2.robjects import pandas2ri
@@ -62,13 +57,6 @@ class ModelEvaluation(object):
         self.y_proba = None
         self.residuals = None
         self.p_values = None
-        # self.final_model = mt.ModelFitting().final_model_fit() or via arg in run script
-
-        # self.metrics = {  # TODO impl as eval_set
-        #     "name": self.name,
-        #     "train": len(self.X_train),
-        #     "test": len(self.X_test),
-        # }
 
     def model_evaluate_ncv(self, sample_weights=None, prediction_method="predict"):
         """
@@ -109,17 +97,6 @@ class ModelEvaluation(object):
             return_estimator=True,
             return_indices=True,  # need to access y_pred from finla model done on respective outer test-set
         )
-        # try:
-        #     print(
-        #         "model performance measured in MAE (std) on outer CV: %.3f (%.3f)"%(
-        #             model_performance_ncv["test_MAE"].mean(), np.std(model_performance_ncv["test_MAE"])
-        #         ))
-        # except KeyError:
-        #     print(
-        #         "model performance measured in Accuracy (std) on outer CV: %.3f (%.3f)"%(
-        #             model_performance_ncv["test_accuracy"].mean(), np.std(model_performance_ncv["test_accuracy"])
-        #         ))
-
         return model_performance_ncv
 
     def negate_scores_from_sklearn_cross_valdiate(self, model_evaluation_results, metric_names=("test_MAE", "test_MBE", "test_RMSE")):
@@ -130,8 +107,11 @@ class ModelEvaluation(object):
         metric_names (tuple): names of evaluation metrics which should be negated
         returns dict with metric names as keys and list of negated values
         """
+
         ## remove R2 from metrics due that it's maximized and therefore as positive version returned from sklearn.cross_validate()
-        dict_filter = lambda x, y: dict([(i, x[i]) for i in x if i in set(y)])  # filter dict for only metrices to negate
+        def dict_filter(x, y):
+            return dict([(i, x[i]) for i in x if i in set(y)])  # filter dict for only metrices to negate
+
         model_scores = dict_filter(model_evaluation_results, metric_names)
         model_scores_negated = {
             key: [1 * item for item in value]
@@ -187,15 +167,14 @@ class ModelEvaluation(object):
 
         # get generalization performance on outer folds of nested cv,
         # y_pred are the predictions from the outer cv
-        model_performance_ncv = {  ## TODO scores slightly differ from the average number of performance scores for each estimator
-            "test_MAE": mean_absolute_error(y_true, self.y_pred),  # TODO get metrics names fro self.score_metrics
+        model_performance_ncv = {
+            "test_MAE": mean_absolute_error(y_true, self.y_pred),
             "test_RMSE": eu.root_mean_squared_error(y_true, self.y_pred),
             "test_MBE": eu.mean_bias_error(y_true, self.y_pred),
             "test_R2": r2_score(y_true, self.y_pred),
             "test_SMAPE": eu.symmetric_mean_absolute_percentage_error(y_true, self.y_pred),
         }
         return model_performance_ncv
-
 
     def r_get_final_model(self, models_trained_ncv):
         """
@@ -210,7 +189,6 @@ class ModelEvaluation(object):
         r_final_model = robjects.globalenv["r_final_model"]
 
         return r_final_model(self.models_trained_ncv)
-
 
     def calc_residuals(self):
         """
@@ -242,8 +220,7 @@ class ModelEvaluation(object):
 
         return self.residuals
 
-    # TODO check via test.py if calculation of p-values is errorneous
-    def calc_standard_error(self, y, y_pred, newX):  # TODO move them outside class or to utils.py
+    def calc_standard_error(self, y, y_pred, newX):
         """
         y (np.array): observed target values
         y_pred (np.array): predicted target values, in same length as y
@@ -251,7 +228,6 @@ class ModelEvaluation(object):
         return (np.array): standard error
         """
         MSE = (sum((y - y_pred) ** 2)) / (len(newX) - len(newX[0]))
-        ## MSE = (sum((y-y_pred)**2))/(len(newX)-len(X.columns))
         var_b = MSE * (np.linalg.inv(np.dot(newX.T, newX)).diagonal())
         return np.sqrt(var_b)
 
@@ -298,7 +274,6 @@ class ModelEvaluation(object):
         return model_coef
 
     def permutation_feature_importance(self, final_model, X_test, y_test, repeats=10):
-        # def permutation_feature_importance(model, X_test, y_test, y_pred, criterion= r2_score):
         """
         Calculate permutation based feature importance, the importance scores represents the increase in model error
         final_model : final sklearn model       f
@@ -319,20 +294,19 @@ class ModelEvaluation(object):
         importances = permimp.permimp(final_model, threshold=0.95, conditional=True, progressbar=False)
         return importances
 
+    ## not using decorator in this branch
     ## @decorator(model=final_models_trained["crf"], Xy=eval_set_list["crf"]["crf"], target_name=target, feature_name="flowvelocity", scale=True)
-    ## not using decorator @
     def get_partial_dependence(self, **kwargs):
         """
         Derive partial dependences
         feature_name (str):
         return: pd.DataFrame with 1 column named by feature_name contain gridvaleus and 1 column with partial dependences
         """
-        model = kwargs["model"]  # TODO get from class properties
+        model = kwargs["model"]
         Xy = kwargs["Xy"]
         y_name = kwargs["y_name"]
         feature_name = kwargs["feature_name"]
         scale = kwargs["scale"]
-        # percentile_range = kwargs["percentiles"]
 
         X = Xy.dropna().drop(y_name, axis=1)
 
@@ -346,10 +320,7 @@ class ModelEvaluation(object):
             features=feature_name,
             grid_resolution=X.shape[0],
             kind="both",  # ICE plot and PDP
-            # kind="average", # PDPs
-            #  #**further_params,
             percentiles=(0.05, 0.95),
-            # percentiles=percentile_range,
         )
         partial_dep = pd.DataFrame(
             {

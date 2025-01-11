@@ -15,18 +15,17 @@ from dataclasses import dataclass
 import difflib
 import contextlib
 
-import settings as s
+import src.settings as s
 
 logger = s.init_logger("__preprocessing__")
-
 
 
 def create_output_dir(output_dir):
     """
     Create path to store outputs as pathlib objects
-    return: string of created new output path (relative to cwd) 
+    return: string of created new output path (relative to cwd)
     """
-    with contextlib.suppress(Exception): # preserve directory and its file if it already exists
+    with contextlib.suppress(Exception):  # preserve directory and its file if it already exists
         print("Create ", output_dir)
         output_dir.mkdir(parents=True, exist_ok=False)
     return os.path.relpath(output_dir)
@@ -82,10 +81,11 @@ def percentage_of_nan(df):
 @dataclass(frozen=False)  # frozen=False : make annoutations such as "cutoff" mutable
 class FuzzyMerge:
     """
-        Works like pandas merge except also merges on approximate matches. 
-        Dataclass is a class mainly to store data, unlike than a normal Class
-        modified bassed on: https://stackoverflow.com/questions/74778263/python-merge-two-dataframe-based-on-text-similarity-of-their-columns
+    Works like pandas merge except also merges on approximate matches.
+    Dataclass is a class mainly to store data, unlike than a normal Class
+    modified bassed on: https://stackoverflow.com/questions/74778263/python-merge-two-dataframe-based-on-text-similarity-of-their-columns
     """
+
     left: pd.DataFrame
     right: pd.DataFrame
     left_on: str
@@ -105,4 +105,3 @@ class FuzzyMerge:
         matches = difflib.get_close_matches(left, right, n=self.n, cutoff=cutoff)
 
         return matches[0] if matches else None
-        

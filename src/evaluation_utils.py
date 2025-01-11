@@ -11,7 +11,7 @@ import pandas as pd
 from sklearn.metrics import mean_absolute_error, r2_score
 from scipy import stats
 
-import settings as s
+import src.settings as s
 
 logger = s.init_logger("__evaluation_utils__")
 

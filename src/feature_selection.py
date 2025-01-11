@@ -10,13 +10,12 @@ import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 
-
 import rpy2.robjects as robjects
 from rpy2.robjects.packages import importr
 from rpy2.robjects import pandas2ri  # pandas.DataFrames to R dataframes
 from rpy2.robjects.conversion import localconverter
 
-import settings as s
+import src.settings as s
 
 logger = s.init_logger("__feature_selection__")
 

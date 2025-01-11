@@ -13,17 +13,13 @@ import re
 
 from sklearn.metrics import confusion_matrix, mean_absolute_error as mae
 from scipy import stats
-
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
-
-# from matplotlib.cbook import boxplot_stats
 from matplotlib.colors import to_rgba
 import seaborn as sns
 
-# import evaluation_utils as eu
-import settings as s
-import feature_selection as fs
+import src.settings as s
+import src.feature_selection as fs
 
 from rpy2.robjects.packages import importr
 
@@ -150,10 +146,8 @@ def plot_correlations(df, outfile=None, impute_na=False):
     # Add titles to the diagonal axes/subplots
     for ax, col in zip(np.diag(g.axes), df.columns):
         ax.set_title(col, y=0.82, fontsize=26)
-    try:
-        plt.savefig(outfile, dpi=300, bbox_inches="tight")
-    except:
-        pass
+
+    plt.savefig(outfile, dpi=300, bbox_inches="tight")
 
 
 def plot_confusion_matrix(y_true, y_pred, outfile):
@@ -276,7 +270,9 @@ def plot_r_learning_curve(eval_set, target_name, outfile, r_model_name="cforest"
     plt.close()
 
     fig.get_figure().savefig(outfile, dpi=300, bbox_inches="tight")
-def plot_stacked_feature_importances(df_feature_importances, target_name:str, outfile:str):
+
+
+def plot_stacked_feature_importances(df_feature_importances, target_name: str, outfile: str):
     """
     Stack feature importances of multiple models into one barchart
     df_feature_importances : pd.DataFrame with columns which contain feature importances to plot
@@ -407,6 +403,7 @@ def plot_observed_predicted(
 
 # plt.close()
 
+
 def plot_residuals(df_residuals, model_names_abbreviation, model_names_plot, outfile, figsize=(12, 8)):
     """
     Generate plots of residuals , TOdO write residuals to csv file
@@ -491,7 +488,7 @@ def boxplot_outer_scores_ncv(models_scores, outfile, target_name):
     for name, ax in zip(names, axes.flatten()):
         try:
             ax.set_title(name.split("_")[1], fontsize=25)
-        except:
+        except Exception:
             ax.set_title(name, fontsize=25)
 
         ## for all metrices except R2
@@ -546,11 +543,10 @@ def boxplot_outer_scores_ncv(models_scores, outfile, target_name):
         plt.subplots_adjust(top=0.965)
 
         ## legend
-        plt.legend({model_name:s.plot_settings_colorpalette_models[model_name]}, fontsize=25, loc="lower center", bbox_to_anchor=(0.5, 0.1))
+        plt.legend({model_name: s.plot_settings_colorpalette_models[model_name]}, fontsize=25, loc="lower center", bbox_to_anchor=(0.5, 0.1))
         plt.tight_layout()
 
         plt.savefig(outfile, dpi=300, bbox_inches="tight")  # format='jpg'
-
 
 
 def plot_boxplot_scatterplot(df, group, column, scatterpoints):
