@@ -11,6 +11,7 @@ The models estimated the flood losses for HCMC’s microbusinesses with a mean a
 The flood loss models introduced in this study make it possible to derive flood risk metrics specific to microbusinesses to support adaptation decision making and risk transfer mechanisms.
 
 
+
 ## Objectives of this study
 - Identify the main drivers of relative flood losses to microbusinesses in delta cities of South-East Asia. In particular the drivers of economic losses to business content (e.g. machinery, products, furniture) and losses due to interrupted business operations during or shortly after the flood event
 - Estimating both economic losses and assessing the prediction uncertainties using probabilisitc models applied on the drivers identified. The models are validated in regard to their regional transferability (Can Tho City) and the model performances are benchmarked against a ML-based reference model.
@@ -21,7 +22,9 @@ The flood loss models introduced in this study make it possible to derive flood 
 **Abbreviations for relative content losses used in the files:** *chance of rcloss, degree of rcloss*\
 \
 **Note**: \
-The modelling of content losses was split into two prediction tasks - the modelling of the occurrence of content loss (*chance of rcloss*) and the  degree of experienced content loss (*degree of rcloss*). It is an ensemble approach of two probabilistic models (Probabilistic Logistic Regression for the chance of loss and Bayesian Network for the degree of loss)
+The modelling of content losses was split into two prediction tasks - the modelling of the occurrence of content loss (*chance of rcloss*) and the  degree of experienced content loss (*degree of rcloss*). It is an ensemble approach of two probabilistic models (Probabilistic Logistic Regression for the chance of loss and Bayesian Network for the degree of loss)\\
+Files for the survey data preparation and the explorative analysis were saved as `Jupyter Notebooks` in order to enhance the understanding and reproducibility for the single steps. The same applies for the calibration and validation of the flood loss models, ecept for the reference model.
+Files for the identification of the flood loss drivers were kept as `python scripts`
 
 ### Preprocessing and explorative analysis of the survey datasets
 - `./data-preparation/hcmc_floor_numbers.ipynb`  - *enrich records of HCMC dataset with information about floor numbers*
@@ -37,3 +40,14 @@ The modelling of content losses was split into two prediction tasks - the modell
 - `./bayesian_network/bayesian_network_rcloss.ipynb`  - *incl. validation of transferability to Can THo*
 - `./bayesian_network/bayesian_network_rbred.ipynb`  - *incl. validation of transferability to Can THo*
 - `./reference_model/reference_model_rf.py`  - *Random Forest model used for benchmarking the probabilistic flood loss models*
+
+
+## Run
+
+- set project root as working directory: `export PYTHONPATH="src:$PYTHONPATH"`
+- Initially install pre-commit hooks: `poetry run pre-commit install`
+- Install `R` and `RStudio` with following packages and their dependencies. Needed to train and evaluate Conditional Random Forest used for feature selection:
+        - `nestedcv`  - *Nested Cross-Validation*
+        - `pdp`  -  *Partial Dependencies*
+        - `party` - *Conditional Random Forest*
+        - `caret` - *Note: package version needs to be higher than >= 6.0-90*
