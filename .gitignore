@@ -1,10 +1,12 @@
 # config and cache files
 .ipynb_checkpoints/
 ipython_config.py
-.vscode/
 __pycache__/
 .pytest_cache/
 .ruff_cache/
+# uv
+.venv/  
+uv.lock
 
 # logs and mergetool orig files
 *.orig
@@ -12,13 +14,14 @@ __pycache__/
 logs/
 ohsome_log/
 
-# models config and trained models
+# store trained models and models configs
 *.pkl
 *.joblib
 
-# exclude data files and folders, except for the test data
+#  make sure that no survey-data is published in the repository
 input_survey_data/
-*.xlsx  # make sure that no survey-data is published in the repository
+*.xlsx
+# exclude further data files and folders, except for the test data
 figures_for_latex/
 model_results/
 reference_model_results/
@@ -31,7 +34,7 @@ osm_modules/*.geojson
 bayesian-network/*.pdf
 bayesian-network/*.png
 
-# notebooks, except certain NBs for BN
+# notebooks, except specific ones needed for data preparation and calibration of bayesian networks
 *.ipynb
 !bayesian-network/*.ipynb
 !data-preparation/*.ipynb
