@@ -2,7 +2,7 @@ name: pre-commit (linter, formatter)
 on: [ push, pull_request ]
 jobs:
   pre-commit:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4

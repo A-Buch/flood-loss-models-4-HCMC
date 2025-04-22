@@ -1,5 +1,5 @@
-## inital setup: `uv run pre-commit install
-## local run: pre-commit run --all-files
+## inital setup: `uv run pre-commit install`
+## local run: `uv run pre-commit run --all-files`
 
 repos: #  definitions see: https://pre-commit.com/hooks.html
 

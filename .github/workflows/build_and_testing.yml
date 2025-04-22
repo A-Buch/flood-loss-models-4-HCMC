@@ -26,12 +26,12 @@ jobs:
       - name: Check workflow files
         run: ${{ steps.get_actionlint.outputs.executable }} -color
         shell: bash
-        
+
   build_and_test:
     strategy:
       #fail-fast: false
       matrix:
-        os: [windows-latest, ubunu-latest]
+        os: [windows-latest, ubuntu-latest]
     runs-on: ${{ matrix.os }}
     name: Runs on "${{matrix.os}}"
     # define steps of job "build_and_test"
@@ -49,7 +49,7 @@ jobs:
       run: |
         uv sync --locked --all-extras --dev
         echo installed packages via uv (using universal/cross-platform dependencies)
-     
+
 
   coverage:
     name: Coverage Testing
