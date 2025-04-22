@@ -1,27 +1,40 @@
-[tool.poetry]
-name = "src"
+[project]
+name = "flood-loss-modelling"
 version = "0.1.0"
 description = ""
-authors = ["Anna Buch <anna.buch@uni-heidelberg.de>"]
+authors = [{name="Anna Buch", email="anna.buch@uni-heidelberg.de"},]
+requires-python = ">=3.12"
+readme = "README.md"
+dependencies = [
+    "geopandas>=1.0.1",
+    "ipykernel>=6.29.5",
+    "joblib>=1.4.2",
+    "matplotlib>=3.10.1",
+    "numpy>=2.2.5",
+    "pandas>=2.2.3",
+    "pre-commit>=4.2.0",
+    "py-banshee>=1.1.2",
+    "scikit-learn>=1.6.1",
+    "seaborn>=0.13.2",
+]
 
-[tool.poetry.dependencies]
-python = "^3.12"
-joblib = "^1.1.0"
-ipykernel = "^6.29.5"
-geopandas = "^1.0.1"
-scikit-learn = "^1.6.0"
-matplotlib = "^3.10.0"
-seaborn = "^0.13.2"
-openpyxl = "^3.1.5"
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
-[tool.poetry.dev-dependencies]
-pytest = "^6.2.5"
-pre-commit = "^3.0.0"
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+[tool.uv]
+dev-dependencies = [
+    "ruff>=0.6.2",
+    "black>=23.3.0",
+    "pytest>=7.4.0",
+    "pre-commit>=3.0.0",
+]
 
 [tool.black]
 line-length = 150
-#exclude = ["versioneer.py", "visual_check.py"]
-## exclude = "\.pyi?$" #extend-exclude = '''.*test_.*'''
 
 [tool.ruff]
 select = [
@@ -34,15 +47,11 @@ select = [
 ]
 fix = true
 ignore = ["C901", "E714", "I001", "E501", "E402"]   # E501 line too long, E402 Module level import at top of file
-exclude = [".venv", ".ipynb", "versioneer.py", "*_cache"]
 line-length = 150  # Same as Black
 
 [tool.ruff.lint]
 fixable = ["ALL"] # default
-# select = ["E4", "E7", "E9", "F"] # default: https://docs.astral.sh/ruff/configuration/
-# ignore = []
-# Allow fix for all enabled rules (when `--fix`) is provided.
-# unfixable = []
+
 
 [tool.ruff.format] # default ruff config, equaivalent to Black default config
 quote-style = "double"
