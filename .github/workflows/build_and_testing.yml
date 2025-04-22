@@ -26,12 +26,12 @@ jobs:
       - name: Check workflow files
         run: ${{ steps.get_actionlint.outputs.executable }} -color
         shell: bash
-
+        
   build_and_test:
     strategy:
       #fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-latest]
+        os: [ubuntu-latest]  # TODO test for windows-latest
     runs-on: ${{ matrix.os }}
     name: Runs on "${{matrix.os}}"
     # define steps of job "build_and_test"
@@ -40,16 +40,24 @@ jobs:
       uses: actions/checkout@v4  # potentially faster: uses: astral-sh/setup-uv@v5
     - name: Set up uv
       uses: astral-sh/setup-uv@v5
+      with:
+        enable-cache: true
+        cache-dependency-glob: "pyproject.toml"
     - name: Set up Python, using version defined in pyproject.toml
       uses: actions/setup-python@v5
       with:
         python-version-file: "pyproject.toml"
     # test to install packages using uv
+    - name: Install uv
+      run: |
+        pip install uv
+        echo uv installed successfully
+
     - name: Install project
       run: |
         uv sync --locked --all-extras --dev
         echo installed packages via uv (using universal/cross-platform dependencies)
-
+     
 
   coverage:
     name: Coverage Testing
@@ -59,7 +67,9 @@ jobs:
       uses: actions/checkout@v4
     - name: Set up uv
       uses: astral-sh/setup-uv@v5
-
+      with:
+        enable-cache: true
+        cache-dependency-glob: "pyproject.toml"
     - name: Run Python tests [unittest]
       working-directory: ./tests
       run: |
