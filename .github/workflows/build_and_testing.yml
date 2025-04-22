@@ -1,0 +1,67 @@
+name: Build and Testing
+
+on:
+  # Run CI on pushes to all fix- and develop-branches,
+  # and on only pull requests to the main branch
+  push:
+    branches:
+    - "**" # matches every branch
+    - "!main" # except main and branches for fixing bugs
+    - "!fix_**"
+  pull_request:
+    branches:
+    - "**"
+
+# define jobs [actionlint, build_and_test, coverage]
+jobs:
+
+  actionlint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download actionlint
+        id: get_actionlint
+        run: bash <(curl https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+        shell: bash
+      - name: Check workflow files
+        run: ${{ steps.get_actionlint.outputs.executable }} -color
+        shell: bash
+        
+  build_and_test:
+    strategy:
+      #fail-fast: false
+      matrix:
+        os: [windows-latest, ubunu-latest]
+    runs-on: ${{ matrix.os }}
+    name: Runs on "${{matrix.os}}"
+    # define steps of job "build_and_test"
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4  # potentially faster: uses: astral-sh/setup-uv@v5
+    - name: Set up uv
+      uses: astral-sh/setup-uv@v5
+    - name: Set up Python, using version defined in pyproject.toml
+      uses: actions/setup-python@v5
+      with:
+        python-version-file: "pyproject.toml"
+    # test to install packages using uv
+    - name: Install project
+      run: |
+        uv sync --locked --all-extras --dev
+        echo installed packages via uv (using universal/cross-platform dependencies)
+     
+
+  coverage:
+    name: Coverage Testing
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    - name: Set up uv
+      uses: astral-sh/setup-uv@v5
+
+    - name: Run Python tests [unittest]
+      working-directory: ./tests
+      run: |
+        uv run -m unittest ./test_*.py
+        echo checking for test errors in ./tests/test_*.py
